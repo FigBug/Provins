@@ -24,7 +24,7 @@ inline Direction rotateCW (Direction d, int steps) noexcept
 
 enum class EdgeType { field, road, city };
 
-enum class FeatureType { city, road, cloister };
+enum class FeatureType { city, road, cloister, field };
 
 struct Feature
 {

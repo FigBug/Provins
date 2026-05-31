@@ -92,6 +92,22 @@ TileDeck::TileDeck (const juce::String& json, juce::uint32 randomSeed)
             }
         }
 
+        // Synthesize one field feature per tile bundling every field-typed
+        // edge. Simplified model — a real Carcassonne tile may have multiple
+        // field regions when a road bisects the field, but the JSON's meta
+        // explicitly omits half-edge geometry and we approximate it as one
+        // region per tile. Fields connect across tiles via shared field edges.
+        {
+            Feature fieldFeature;
+            fieldFeature.type    = FeatureType::field;
+            fieldFeature.pennant = false;
+            for (auto d : allDirections)
+                if (t.edges[(size_t) d] == EdgeType::field)
+                    fieldFeature.edges.push_back (d);
+            if (! fieldFeature.edges.empty())
+                t.features.push_back (std::move (fieldFeature));
+        }
+
         types.push_back (std::move (t));
     }
 

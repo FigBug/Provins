@@ -1,0 +1,24 @@
+#pragma once
+
+#include "../game/GameState.h"
+#include <juce_gui_basics/juce_gui_basics.h>
+
+namespace view
+{
+
+/** Translucent overlay showing per-player live scores plus deck-remaining
+    counter. Repainted from MainComponent's tick. */
+class Hud : public juce::Component
+{
+public:
+    explicit Hud (const game::GameState& state);
+
+    void paint (juce::Graphics&) override;
+
+private:
+    const game::GameState& state;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Hud)
+};
+
+} // namespace view
