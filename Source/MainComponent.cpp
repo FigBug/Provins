@@ -15,7 +15,9 @@ MainComponent::MainComponent()
     gameView = std::make_unique<view::GameView>  (*state);
     hud      = std::make_unique<view::Hud>       (*state);
 
-    // Players spawn dynamically as controllers connect — handled in GameState::update.
+    // Humans spawn dynamically as controllers connect — handled in GameState::update.
+    // One AI joins by default so solo-human play has an opponent.
+    state->spawnAi();
 
     addAndMakeVisible (*gameView);
     addAndMakeVisible (*hud);

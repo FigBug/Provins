@@ -5,9 +5,31 @@
 #include <juce_graphics/juce_graphics.h>
 #include <optional>
 #include <set>
+#include <vector>
 
 namespace game
 {
+
+/** Per-AI-player working memory. Plans are cached between ticks and
+    invalidated when the world changes underneath them. */
+struct AiBrain
+{
+    // Pending placement: (placeCell, rotation) reached from placeFromCell.
+    std::optional<GridCoord> placeCell;
+    int                      placeRotation = 0;
+    std::optional<GridCoord> placeFromCell;
+
+    // Path of placed cells from current position to wherever we're walking.
+    std::vector<GridCoord> path;
+    size_t                 pathIdx = 0;
+
+    // Sub-tile target inside the destination cell (for positioning over a
+    // specific feature when claiming).
+    std::optional<juce::Point<float>> fineTarget;
+
+    // Re-plan throttle so we don't spam BFS when things are unstable.
+    float planCooldown = 0.0f;
+};
 
 struct Player
 {
@@ -43,6 +65,9 @@ struct Player
     bool prevClaim     = false;
     bool prevRotateCW  = false;
     bool prevRotateCCW = false;
+
+    /** Set iff this player is AI. `controllerIndex` stays at -1 in that case. */
+    std::optional<AiBrain> ai;
 };
 
 } // namespace game

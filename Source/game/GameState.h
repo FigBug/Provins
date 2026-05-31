@@ -35,9 +35,18 @@ public:
         keep working; the HUD draws a winner overlay. */
     bool isGameOver() const noexcept;
 
+    /** Add an AI-driven player. Picks the first free colour slot 0..3. */
+    void spawnAi();
+
 private:
     bool isClaimedByAnyone (const FeatureRef& ref) const;
     void spawnPlayer       (int controllerIndex);
+    int  findFreeSlot      () const noexcept;
+
+    void aiUpdate          (Player& p, AiBrain& brain, float dt);
+    bool aiPlanPlacement   (Player& p, AiBrain& brain);
+    bool aiPlanClaim       (Player& p, AiBrain& brain);
+    void aiMoveAlongPath   (Player& p, AiBrain& brain, float dt);
 
     TileDeck            deck;
     Board               board;
