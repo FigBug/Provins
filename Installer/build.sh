@@ -202,7 +202,11 @@ else
   if [ ! -f "$ISCC" ]; then
     ISCC="/c/Program Files/Inno Setup 6/ISCC.exe"
   fi
-  "$ISCC" "/DGameVersion=$VERSION" "$PROJECT_ROOT/Installer/win/Provins.iss"
+  # Note the leading `//`: MSYS Git Bash on Windows would otherwise convert
+  # `/D...` into the Windows path `D:\...` because anything starting with /<X>
+  # is treated as a drive-letter Unix path. `//D...` survives intact as `/D...`
+  # by the time ISCC.exe gets it.
+  "$ISCC" "//DGameVersion=$VERSION" "$PROJECT_ROOT/Installer/win/Provins.iss"
 
   EXE_OUT="$PROJECT_ROOT/Installer/win/bin/${GAME}.exe"
 
