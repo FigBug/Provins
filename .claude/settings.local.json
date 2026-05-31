@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git submodule *)",
+      "Bash(chmod +x *)",
+      "Bash(cmake --preset xcode)",
+      "Bash(cmake --build --preset xcode --config Debug)",
+      "Bash(uuidgen *)",
+      "Bash(./Installer/build.sh)",
+      "Bash(pkgutil --payload-files /Users/rrabien/dev/Provins/bin/Provins.pkg)"
+    ]
+  }
+}

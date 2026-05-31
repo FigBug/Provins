@@ -1,0 +1,4 @@
+Provins by SocaLabs
+===================
+
+This installer places Provins.app in /Applications.
