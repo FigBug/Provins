@@ -67,6 +67,15 @@ file (GLOB_RECURSE source_files CONFIGURE_DEPENDS
 target_sources (${GAME_NAME} PRIVATE ${source_files})
 source_group (TREE ${CMAKE_CURRENT_SOURCE_DIR}/Source PREFIX Source FILES ${source_files})
 
+# Bake Assets/ into BinaryData so the game ships self-contained.
+file (GLOB_RECURSE asset_files CONFIGURE_DEPENDS
+	${CMAKE_CURRENT_SOURCE_DIR}/Assets/*)
+
+juce_add_binary_data (${GAME_NAME}_Assets
+	HEADER_NAME BinaryData.h
+	NAMESPACE   BinaryData
+	SOURCES     ${asset_files})
+
 juce_generate_juce_header (${GAME_NAME})
 
 target_compile_definitions (${GAME_NAME} PRIVATE
@@ -78,6 +87,8 @@ target_compile_definitions (${GAME_NAME} PRIVATE
 )
 
 target_link_libraries (${GAME_NAME} PRIVATE
+	${GAME_NAME}_Assets
+
 	gin
 	gin_controllers
 	gin_graphics

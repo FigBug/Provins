@@ -8,7 +8,10 @@
       "Bash(uuidgen *)",
       "Bash(./Installer/build.sh)",
       "Bash(pkgutil --payload-files /Users/rrabien/dev/Provins/bin/Provins.pkg)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(awk NR>=1 && NR<=20 {printf \"%2d: %s\\\\n\", NR, $0} *)",
+      "Bash(cmake --preset xcode --debug-output)",
+      "Bash(git -C /Users/rrabien/dev/Provins status -s)"
     ]
   }
 }

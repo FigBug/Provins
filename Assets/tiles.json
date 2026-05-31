@@ -1,0 +1,257 @@
+{
+  "meta": {
+    "game": "Carcassonne",
+    "edition": "base game, classic A-X distribution (no expansions)",
+    "totalTiles": 72,
+    "distinctTypes": 24,
+    "startTile": "D",
+    "startTileNote": "One of the 4 type-D tiles is the start tile (darker back). It is placed face-up before play; the remaining 71 are drawn.",
+    "edgeOrder": ["N", "E", "S", "W"],
+    "edgeTypes": ["city", "road", "field"],
+    "conventions": {
+      "edges": "Each tile is described in a fixed canonical (unrotated) orientation. Edges are N(top), E(right), S(bottom), W(left).",
+      "rotation": "Rotating a tile 90 deg clockwise maps N->E->S->W->N. Rotate both the 'edges' map and every edge reference inside 'features' the same way.",
+      "placementRule": "A tile may be placed in an empty cell iff every edge it shares with an already-placed neighbor has the same edgeType (city-city, road-road, field-field).",
+      "featureConnectivity": "Each entry in 'features' is ONE connected feature. Edges listed together belong to the same feature and connect through the tile. Separate features (e.g. two cities that do not touch) are listed as separate entries. A road feature listing a single edge is a road end (dead-ends into a cloister, a junction, or a city gate).",
+      "pennant": "Cities only. true = the city segment shows a pennant/shield (counts as an extra 2 points when the city is completed).",
+      "fields": "Field/farmer modeling is intentionally OMITTED here. Correct farm scoring needs a finer half-edge model (a road splits the field along an edge into two sides, and each field must record which completed cities it borders). See meta.fieldsTODO."
+    },
+    "fieldsTODO": "Ask for the half-edge field extension: each edge split into two half-segments, field features grouping half-segments, and a 'bordersCities' adjacency list per field for farmer scoring."
+  },
+  "tiles": [
+    {
+      "id": "A",
+      "count": 2,
+      "description": "Cloister with a single road leading off one edge",
+      "edges": { "N": "field", "E": "field", "S": "road", "W": "field" },
+      "features": [
+        { "type": "cloister" },
+        { "type": "road", "edges": ["S"] }
+      ]
+    },
+    {
+      "id": "B",
+      "count": 4,
+      "description": "Cloister surrounded entirely by field",
+      "edges": { "N": "field", "E": "field", "S": "field", "W": "field" },
+      "features": [
+        { "type": "cloister" }
+      ]
+    },
+    {
+      "id": "C",
+      "count": 1,
+      "description": "City filling all four edges, with a pennant",
+      "edges": { "N": "city", "E": "city", "S": "city", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "E", "S", "W"], "pennant": true }
+      ]
+    },
+    {
+      "id": "D",
+      "count": 4,
+      "description": "Straight road through two opposite edges, city on a third edge (start tile type)",
+      "edges": { "N": "city", "E": "road", "S": "field", "W": "road" },
+      "features": [
+        { "type": "city", "edges": ["N"], "pennant": false },
+        { "type": "road", "edges": ["E", "W"] }
+      ]
+    },
+    {
+      "id": "E",
+      "count": 5,
+      "description": "City segment on one edge, field on the other three",
+      "edges": { "N": "city", "E": "field", "S": "field", "W": "field" },
+      "features": [
+        { "type": "city", "edges": ["N"], "pennant": false }
+      ]
+    },
+    {
+      "id": "F",
+      "count": 2,
+      "description": "City spanning two opposite edges, connected, with a pennant",
+      "edges": { "N": "city", "E": "field", "S": "city", "W": "field" },
+      "features": [
+        { "type": "city", "edges": ["N", "S"], "pennant": true }
+      ]
+    },
+    {
+      "id": "G",
+      "count": 1,
+      "description": "City spanning two opposite edges, connected, no pennant",
+      "edges": { "N": "city", "E": "field", "S": "city", "W": "field" },
+      "features": [
+        { "type": "city", "edges": ["N", "S"], "pennant": false }
+      ]
+    },
+    {
+      "id": "H",
+      "count": 3,
+      "description": "City on two opposite edges, NOT connected (field between them)",
+      "edges": { "N": "field", "E": "city", "S": "field", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["E"], "pennant": false },
+        { "type": "city", "edges": ["W"], "pennant": false }
+      ]
+    },
+    {
+      "id": "I",
+      "count": 2,
+      "description": "City on two adjacent edges, NOT connected",
+      "edges": { "N": "city", "E": "field", "S": "field", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N"], "pennant": false },
+        { "type": "city", "edges": ["W"], "pennant": false }
+      ]
+    },
+    {
+      "id": "J",
+      "count": 3,
+      "description": "City on one edge, plus a road bending between the two adjacent edges",
+      "edges": { "N": "city", "E": "road", "S": "road", "W": "field" },
+      "features": [
+        { "type": "city", "edges": ["N"], "pennant": false },
+        { "type": "road", "edges": ["E", "S"] }
+      ]
+    },
+    {
+      "id": "K",
+      "count": 3,
+      "description": "City on one edge, plus a road bend (mirror of J)",
+      "edges": { "N": "city", "E": "field", "S": "road", "W": "road" },
+      "features": [
+        { "type": "city", "edges": ["N"], "pennant": false },
+        { "type": "road", "edges": ["S", "W"] }
+      ]
+    },
+    {
+      "id": "L",
+      "count": 3,
+      "description": "City on one edge, plus a three-way road junction (three separate road ends)",
+      "edges": { "N": "city", "E": "road", "S": "road", "W": "road" },
+      "features": [
+        { "type": "city", "edges": ["N"], "pennant": false },
+        { "type": "road", "edges": ["E"] },
+        { "type": "road", "edges": ["S"] },
+        { "type": "road", "edges": ["W"] }
+      ]
+    },
+    {
+      "id": "M",
+      "count": 2,
+      "description": "City on two adjacent edges, connected (corner), with a pennant",
+      "edges": { "N": "city", "E": "field", "S": "field", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "W"], "pennant": true }
+      ]
+    },
+    {
+      "id": "N",
+      "count": 3,
+      "description": "City corner (two adjacent edges connected), no pennant",
+      "edges": { "N": "city", "E": "field", "S": "field", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "W"], "pennant": false }
+      ]
+    },
+    {
+      "id": "O",
+      "count": 2,
+      "description": "City corner with a road passing through the field side, with a pennant",
+      "edges": { "N": "city", "E": "road", "S": "road", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "W"], "pennant": true },
+        { "type": "road", "edges": ["E", "S"] }
+      ]
+    },
+    {
+      "id": "P",
+      "count": 3,
+      "description": "City corner with a road through, no pennant",
+      "edges": { "N": "city", "E": "road", "S": "road", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "W"], "pennant": false },
+        { "type": "road", "edges": ["E", "S"] }
+      ]
+    },
+    {
+      "id": "Q",
+      "count": 1,
+      "description": "City on three edges, connected, with a pennant",
+      "edges": { "N": "city", "E": "city", "S": "field", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "E", "W"], "pennant": true }
+      ]
+    },
+    {
+      "id": "R",
+      "count": 3,
+      "description": "City on three edges, connected, no pennant",
+      "edges": { "N": "city", "E": "city", "S": "field", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "E", "W"], "pennant": false }
+      ]
+    },
+    {
+      "id": "S",
+      "count": 2,
+      "description": "City on three edges with a road exiting the open side, with a pennant",
+      "edges": { "N": "city", "E": "city", "S": "road", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "E", "W"], "pennant": true },
+        { "type": "road", "edges": ["S"] }
+      ]
+    },
+    {
+      "id": "T",
+      "count": 1,
+      "description": "City on three edges with a road exiting the open side, no pennant",
+      "edges": { "N": "city", "E": "city", "S": "road", "W": "city" },
+      "features": [
+        { "type": "city", "edges": ["N", "E", "W"], "pennant": false },
+        { "type": "road", "edges": ["S"] }
+      ]
+    },
+    {
+      "id": "U",
+      "count": 8,
+      "description": "Straight road through two opposite edges",
+      "edges": { "N": "road", "E": "field", "S": "road", "W": "field" },
+      "features": [
+        { "type": "road", "edges": ["N", "S"] }
+      ]
+    },
+    {
+      "id": "V",
+      "count": 9,
+      "description": "Curved road (bend between two adjacent edges)",
+      "edges": { "N": "field", "E": "field", "S": "road", "W": "road" },
+      "features": [
+        { "type": "road", "edges": ["S", "W"] }
+      ]
+    },
+    {
+      "id": "W",
+      "count": 4,
+      "description": "Three-way road junction (three separate road ends meeting)",
+      "edges": { "N": "field", "E": "road", "S": "road", "W": "road" },
+      "features": [
+        { "type": "road", "edges": ["E"] },
+        { "type": "road", "edges": ["S"] },
+        { "type": "road", "edges": ["W"] }
+      ]
+    },
+    {
+      "id": "X",
+      "count": 1,
+      "description": "Four-way road crossroads (four separate road ends meeting)",
+      "edges": { "N": "road", "E": "road", "S": "road", "W": "road" },
+      "features": [
+        { "type": "road", "edges": ["N"] },
+        { "type": "road", "edges": ["E"] },
+        { "type": "road", "edges": ["S"] },
+        { "type": "road", "edges": ["W"] }
+      ]
+    }
+  ]
+}
