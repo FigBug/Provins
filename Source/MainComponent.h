@@ -32,6 +32,7 @@ private:
     std::unique_ptr<view::Hud>            hud;
     double                                lastTickMs = 0.0;
     bool                                  inGame     = false;
+    bool                                  endScreenReady = false;
     juce::String                          tilesJson;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)

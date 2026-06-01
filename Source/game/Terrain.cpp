@@ -107,13 +107,50 @@ EdgeType terrainAt (const PlacedTile& tile, juce::Point<float> local) noexcept
         }
     }
 
-    // City patches: one trapezoid per city-typed edge.
+    // City patches: trapezoids per city edge + filled interior for connected cities.
     for (auto edge : allDirections)
     {
         if (tile.type->edges[(size_t) edge] != EdgeType::city)
             continue;
         if (inCityTrapezoid (canonical, edge))
             return EdgeType::city;
+    }
+
+    for (const auto& f : tile.type->features)
+    {
+        if (f.type != FeatureType::city || f.edges.size() < 2)
+            continue;
+
+        for (size_t i = 0; i < f.edges.size(); ++i)
+        {
+            for (size_t j = i + 1; j < f.edges.size(); ++j)
+            {
+                int diff = (((int) f.edges[j] - (int) f.edges[i]) + 4) & 3;
+                if (diff == 2
+                    && canonical.x >= kCityDepth && canonical.x <= 1.0f - kCityDepth
+                    && canonical.y >= kCityDepth && canonical.y <= 1.0f - kCityDepth)
+                    return EdgeType::city;
+
+                if (diff == 1 || diff == 3)
+                {
+                    auto d1 = f.edges[i], d2 = f.edges[j];
+                    float cx = 0.0f, cy = 0.0f;
+                    if ((d1 == Direction::north && d2 == Direction::east)
+                     || (d1 == Direction::east  && d2 == Direction::north))
+                        { cx = 1.0f; cy = 0.0f; }
+                    else if ((d1 == Direction::east  && d2 == Direction::south)
+                          || (d1 == Direction::south && d2 == Direction::east))
+                        { cx = 1.0f; cy = 1.0f; }
+                    else if ((d1 == Direction::south && d2 == Direction::west)
+                          || (d1 == Direction::west  && d2 == Direction::south))
+                        { cx = 0.0f; cy = 1.0f; }
+
+                    if (std::abs (canonical.x - cx) <= kCityDepth
+                        && std::abs (canonical.y - cy) <= kCityDepth)
+                        return EdgeType::city;
+                }
+            }
+        }
     }
 
     return EdgeType::field;
@@ -148,8 +185,8 @@ std::optional<TileFeatureSample>
     if (bestRoadFi >= 0)
         return TileFeatureSample { FeatureType::road, bestRoadFi };
 
-    // Cities — find which city edge's trapezoid contains the point, then find
-    // the feature that includes that edge.
+    // Cities — check edge trapezoids first, then filled interior for
+    // connected multi-edge cities.
     for (auto edge : allDirections)
     {
         if (tile.type->edges[(size_t) edge] != EdgeType::city)
@@ -165,6 +202,58 @@ std::optional<TileFeatureSample>
                 if (e == edge)
                     return TileFeatureSample { FeatureType::city, (int) fi };
         }
+    }
+
+    // Connected city interior: for multi-edge city features, check if the
+    // point is inside the filled area between edges.
+    for (size_t fi = 0; fi < tile.type->features.size(); ++fi)
+    {
+        const auto& f = tile.type->features[fi];
+        if (f.type != FeatureType::city || f.edges.size() < 2)
+            continue;
+
+        bool inInterior = false;
+        for (size_t i = 0; i < f.edges.size() && ! inInterior; ++i)
+        {
+            for (size_t j = i + 1; j < f.edges.size() && ! inInterior; ++j)
+            {
+                int diff = (((int) f.edges[j] - (int) f.edges[i]) + 4) & 3;
+
+                if (diff == 2)
+                {
+                    // Opposite edges: center rect
+                    if (canonical.x >= kCityDepth && canonical.x <= 1.0f - kCityDepth
+                        && canonical.y >= kCityDepth && canonical.y <= 1.0f - kCityDepth)
+                        inInterior = true;
+                }
+                else if (diff == 1 || diff == 3)
+                {
+                    // Adjacent edges: corner triangle
+                    auto d1 = f.edges[i], d2 = f.edges[j];
+                    float cx, cy;
+                    if ((d1 == Direction::north && d2 == Direction::east)
+                     || (d1 == Direction::east  && d2 == Direction::north))
+                        { cx = 1.0f; cy = 0.0f; }
+                    else if ((d1 == Direction::east  && d2 == Direction::south)
+                          || (d1 == Direction::south && d2 == Direction::east))
+                        { cx = 1.0f; cy = 1.0f; }
+                    else if ((d1 == Direction::south && d2 == Direction::west)
+                          || (d1 == Direction::west  && d2 == Direction::south))
+                        { cx = 0.0f; cy = 1.0f; }
+                    else
+                        { cx = 0.0f; cy = 0.0f; }
+
+                    // Inside the corner if within the kCityDepth box from
+                    // the outer corner
+                    if (std::abs (canonical.x - cx) <= kCityDepth
+                        && std::abs (canonical.y - cy) <= kCityDepth)
+                        inInterior = true;
+                }
+            }
+        }
+
+        if (inInterior)
+            return TileFeatureSample { FeatureType::city, (int) fi };
     }
 
     // Cloister — central square only.

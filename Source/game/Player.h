@@ -72,6 +72,8 @@ struct Player
 
     int meeplesAvailable() const noexcept { return meepleSupply; }
 
+    int                tilesPlaced = 0;
+
     bool prevPlace     = false;
     bool prevClaim     = false;
     bool prevRotateCW  = false;

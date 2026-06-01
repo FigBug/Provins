@@ -355,6 +355,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         if (place && ! p.prevPlace && p.targetValid)
         {
             board.place (*target, PlacedTile { p.heldTile, p.heldRotation });
+            ++p.tilesPlaced;
             p.heldTile     = deck.draw();
             p.heldRotation = 0;
             p.targetCell.reset();
@@ -403,7 +404,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
     returnCompletedMeeples();
 
     if (allTilesPlaced() && endTimer < 0.0f)
-        endTimer = 20.0f;
+        endTimer = 10.0f;
 
     if (endTimer > 0.0f)
     {
@@ -436,6 +437,37 @@ int GameState::computeScore (int playerIndex) const
     return total;
 }
 
+GameState::ScoreBreakdown GameState::computeScoreBreakdown (int playerIndex) const
+{
+    ScoreBreakdown bd;
+    if (playerIndex < 0 || playerIndex >= (int) players.size())
+        return bd;
+
+    const auto& player = players[(size_t) playerIndex];
+    bd.tilesPlaced = player.tilesPlaced;
+
+    std::set<FeatureRef> alreadyTraced;
+    for (const auto& [ref, info] : player.claims)
+    {
+        if (alreadyTraced.count (ref))
+            continue;
+
+        const auto inst = traceFeature (board, ref);
+        for (const auto& s : inst.segments)
+            alreadyTraced.insert (s);
+
+        int pts = scoreOf (inst, board);
+        switch (inst.type)
+        {
+            case FeatureType::road:     bd.roads            += pts; break;
+            case FeatureType::city:     (inst.isComplete ? bd.citiesComplete : bd.citiesIncomplete) += pts; break;
+            case FeatureType::cloister: bd.cloisters        += pts; break;
+            case FeatureType::field:    bd.farms            += pts; break;
+        }
+    }
+    return bd;
+}
+
 // ============================================================================
 // AI player
 // ============================================================================
@@ -452,7 +484,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
     else
     {
         brain.stuckTimer += dt;
-        if (brain.stuckTimer > 20.0f)
+        if (brain.stuckTimer > 7.0f)
         {
             brain.placeCell.reset();
             brain.placeFromCell.reset();
@@ -493,7 +525,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
             }
         }
 
-        brain.planCooldown = 0.4f;
+        brain.planCooldown = 0.15f;
     }
 
     aiMoveAlongPath (p, brain, dt);
@@ -504,7 +536,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
         if (cellOf (p.position) == *brain.placeFromCell)
         {
             if (brain.placeDelay <= 0.0f)
-                brain.placeDelay = 10.0f;
+                brain.placeDelay = 3.3f;
 
             brain.placeDelay -= dt;
             if (brain.placeDelay > 0.0f)
@@ -516,6 +548,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                 && board.canPlace (*brain.placeCell, pt))
             {
                 board.place (*brain.placeCell, pt);
+                ++p.tilesPlaced;
                 p.lastPlaced   = *brain.placeCell;
                 p.heldTile     = deck.draw();
                 p.heldRotation = 0;
@@ -553,7 +586,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                     if (diff.getDistanceFromOrigin() < 0.10f)
                     {
                         if (brain.claimDelay <= 0.0f)
-                            brain.claimDelay = 5.0f;
+                            brain.claimDelay = 1.7f;
 
                         brain.claimDelay -= dt;
                         if (brain.claimDelay > 0.0f)

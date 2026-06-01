@@ -38,7 +38,6 @@ namespace
 
     void fillCityPatch (juce::Graphics& g, Direction d)
     {
-        // Trapezoid from the edge to a smaller line `kCityDepth` inward.
         juce::Path p;
         switch (d)
         {
@@ -67,6 +66,58 @@ namespace
                 p.lineTo (kCityDepth, kTile - kCityDepth);
                 break;
         }
+        p.closeSubPath();
+        g.fillPath (p);
+    }
+
+    juce::Point<float> innerCorner (Direction d)
+    {
+        switch (d)
+        {
+            case Direction::north: return { kCityDepth,         kCityDepth };
+            case Direction::east:  return { kTile - kCityDepth, kCityDepth };
+            case Direction::south: return { kTile - kCityDepth, kTile - kCityDepth };
+            case Direction::west:  return { kCityDepth,         kTile - kCityDepth };
+        }
+        return { kHalf, kHalf };
+    }
+
+    juce::Point<float> outerCorner (Direction d)
+    {
+        switch (d)
+        {
+            case Direction::north: return { 0.0f,  0.0f };
+            case Direction::east:  return { kTile, 0.0f };
+            case Direction::south: return { kTile, kTile };
+            case Direction::west:  return { 0.0f,  kTile };
+        }
+        return { kHalf, kHalf };
+    }
+
+    void fillCityCorner (juce::Graphics& g, Direction d1, Direction d2)
+    {
+        auto ic1 = innerCorner (d1);
+        auto ic2 = innerCorner (d2);
+
+        Direction cornerDir;
+        if ((d1 == Direction::north && d2 == Direction::east)
+         || (d1 == Direction::east  && d2 == Direction::north))
+            cornerDir = Direction::east;
+        else if ((d1 == Direction::east  && d2 == Direction::south)
+              || (d1 == Direction::south && d2 == Direction::east))
+            cornerDir = Direction::south;
+        else if ((d1 == Direction::south && d2 == Direction::west)
+              || (d1 == Direction::west  && d2 == Direction::south))
+            cornerDir = Direction::west;
+        else
+            cornerDir = Direction::north;
+
+        auto oc = outerCorner (cornerDir);
+
+        juce::Path p;
+        p.startNewSubPath (ic1);
+        p.lineTo (oc);
+        p.lineTo (ic2);
         p.closeSubPath();
         g.fillPath (p);
     }
@@ -139,12 +190,33 @@ void TileRenderer::draw (juce::Graphics& g, const PlacedTile& tile)
     g.setColour (fieldColour());
     g.fillRect (juce::Rectangle<float> (0.0f, 0.0f, kTile, kTile));
 
-    // City patches: one per city-typed edge. (For connected multi-edge cities
-    // this gives the visual impression of one larger blob; refining later.)
+    // City patches: one trapezoid per city-typed edge, plus fill between
+    // edges that belong to the same connected city feature.
     g.setColour (cityColour());
     for (auto d : game::allDirections)
         if (tile.type->edges[(size_t) d] == EdgeType::city)
             fillCityPatch (g, d);
+
+    for (const auto& f : tile.type->features)
+    {
+        if (f.type != FeatureType::city || f.edges.size() < 2)
+            continue;
+
+        for (size_t i = 0; i < f.edges.size(); ++i)
+        {
+            for (size_t j = i + 1; j < f.edges.size(); ++j)
+            {
+                auto d1 = f.edges[i], d2 = f.edges[j];
+                int diff = ((int) d2 - (int) d1 + 4) & 3;
+                if (diff == 1 || diff == 3)
+                    fillCityCorner (g, d1, d2);
+                else if (diff == 2)
+                    g.fillRect (juce::Rectangle<float> (kCityDepth, kCityDepth,
+                                                        kTile - 2.0f * kCityDepth,
+                                                        kTile - 2.0f * kCityDepth));
+            }
+        }
+    }
 
     // Count total road edges to detect intersections (3+ = junction).
     int roadEdgeCount = 0;

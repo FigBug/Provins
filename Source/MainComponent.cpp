@@ -25,6 +25,7 @@ MainComponent::~MainComponent() = default;
 void MainComponent::startGame()
 {
     inGame = true;
+    endScreenReady = false;
 
     int numPlayers = titleScreen->getNumPlayers();
     bool slotHasController[4] {};
@@ -108,7 +109,10 @@ void MainComponent::timerCallback()
                      || c->isButtonDown (gin::GameController::Button::start))
                         anyButton = true;
 
-        if (anyButton)
+        if (! anyButton)
+            endScreenReady = true;
+
+        if (anyButton && endScreenReady)
             returnToTitle();
     }
 }

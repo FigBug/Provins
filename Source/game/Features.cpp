@@ -50,7 +50,7 @@ FeatureInstance traceFeature (const Board& board, FeatureRef start)
         return inst;
 
     inst.type       = startTile->type->features[(size_t) start.featureIndex].type;
-    inst.isComplete = true;   // flipped to false on the first open edge
+    inst.isComplete = (inst.type != FeatureType::field);
 
     std::set<FeatureRef> visited { start };
     std::set<GridCoord>  cells;

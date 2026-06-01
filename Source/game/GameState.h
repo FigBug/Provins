@@ -26,9 +26,20 @@ public:
         controllers, move meeples, handle aim / rotate / place / claim. */
     void update (float dt, gin::GameControllerManager& controllers);
 
-    /** Live score for player at index `i`. Sums scoreOf() over every distinct
-        feature instance that contains any of the player's claimed segments. */
     int computeScore (int playerIndex) const;
+
+    struct ScoreBreakdown
+    {
+        int farms           = 0;
+        int cloisters       = 0;
+        int roads           = 0;
+        int citiesComplete  = 0;
+        int citiesIncomplete = 0;
+        int tilesPlaced     = 0;
+        int total() const noexcept { return farms + cloisters + roads + citiesComplete + citiesIncomplete; }
+    };
+
+    ScoreBreakdown computeScoreBreakdown (int playerIndex) const;
 
     bool isGameOver() const noexcept;
     bool allTilesPlaced() const noexcept;

@@ -144,8 +144,14 @@ void Hud::paint (juce::Graphics& g)
     if (! state.isGameOver())
         return;
 
-    const float panW = 520.0f;
-    const float panH = 60.0f + 40.0f * (float) state.getPlayers().size() + 40.0f;
+    const int numP = (int) state.getPlayers().size();
+    constexpr float headerH   = 55.0f;
+    constexpr float colHeaderH = 22.0f;
+    constexpr float playerRowH = 30.0f;
+    constexpr float footerH   = 36.0f;
+    const float panW = 580.0f;
+    const float panH = headerH + colHeaderH + playerRowH * (float) numP + footerH + 16.0f;
+
     juce::Rectangle<float> over { area.getCentreX() - panW * 0.5f,
                                   area.getCentreY() - panH * 0.5f,
                                   panW, panH };
@@ -155,48 +161,82 @@ void Hud::paint (juce::Graphics& g)
     g.setColour (juce::Colours::white);
     g.drawRoundedRectangle (over, 12.0f, 2.0f);
 
-    g.setFont (juce::FontOptions (36.0f, juce::Font::bold));
-    g.drawText ("Game Over", over.removeFromTop (60.0f),
+    g.setFont (juce::FontOptions (32.0f, juce::Font::bold));
+    g.drawText ("Game Over", over.removeFromTop (headerH),
                 juce::Justification::centred, false);
 
-    // Show each player's final score.
-    g.setFont (juce::FontOptions (22.0f, juce::Font::bold));
-    for (size_t i = 0; i < state.getPlayers().size(); ++i)
-    {
-        const auto& p = state.getPlayers()[i];
-        const int score = state.computeScore ((int) i);
-        const bool isWinner = (int) i == winnerIdx;
+    auto content = over.reduced (20.0f, 0.0f);
 
-        auto row = over.removeFromTop (40.0f).reduced (40.0f, 0.0f);
+    // Column headers
+    {
+        auto hdr = content.removeFromTop (colHeaderH);
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.setColour (juce::Colours::white.withAlpha (0.5f));
+
+        float colX = hdr.getX() + 50.0f;
+        float colW = (hdr.getWidth() - 50.0f) / 7.0f;
+        const char* labels[] = { "Roads", "Cities", "Incomp", "Cloist", "Farms", "Tiles", "Total" };
+        for (int c = 0; c < 7; ++c)
+            g.drawText (labels[c], (int)(colX + (float)c * colW), (int)hdr.getY(),
+                        (int)colW, (int)colHeaderH, juce::Justification::centred, false);
+    }
+
+    // Player rows
+    g.setFont (juce::FontOptions (16.0f, juce::Font::bold));
+    for (int i = 0; i < numP; ++i)
+    {
+        const auto& p = state.getPlayers()[(size_t) i];
+        auto bd = state.computeScoreBreakdown (i);
+        const bool isWinner = i == winnerIdx;
+
+        auto row = content.removeFromTop (playerRowH);
 
         if (isWinner)
         {
-            g.setColour (p.colour.withAlpha (0.2f));
-            g.fillRoundedRectangle (row, 6.0f);
+            g.setColour (p.colour.withAlpha (0.15f));
+            g.fillRoundedRectangle (row, 4.0f);
         }
 
+        // Color swatch + name
+        auto nameArea = row.removeFromLeft (50.0f);
         g.setColour (p.colour);
-        g.fillRoundedRectangle (row.removeFromLeft (24.0f).reduced (0.0f, 8.0f), 3.0f);
-
+        g.fillRoundedRectangle (nameArea.removeFromLeft (16.0f).reduced (0.0f, 6.0f), 3.0f);
         g.setColour (juce::Colours::white);
-        row.removeFromLeft (12.0f);
-        g.drawText ("P" + juce::String (i + 1), row, juce::Justification::centredLeft, false);
-        g.drawText (juce::String (score), row, juce::Justification::centredRight, false);
+        g.drawText ("P" + juce::String (i + 1), nameArea, juce::Justification::centred, false);
+
+        // Score columns
+        float colW = row.getWidth() / 7.0f;
+        int vals[] = { bd.roads, bd.citiesComplete, bd.citiesIncomplete,
+                       bd.cloisters, bd.farms, bd.tilesPlaced, bd.total() };
+
+        g.setFont (juce::FontOptions (14.0f));
+        for (int c = 0; c < 7; ++c)
+        {
+            if (c == 6)
+                g.setFont (juce::FontOptions (15.0f, juce::Font::bold));
+
+            g.setColour (c == 6 ? juce::Colours::white : juce::Colours::white.withAlpha (0.8f));
+            g.drawText (juce::String (vals[c]),
+                        (int)(row.getX() + (float)c * colW), (int)row.getY(),
+                        (int)colW, (int)playerRowH,
+                        juce::Justification::centred, false);
+        }
     }
 
-    g.setFont (juce::FontOptions (20.0f));
+    // Winner/tie line
+    auto footer = content.removeFromTop (footerH);
+    g.setFont (juce::FontOptions (18.0f, juce::Font::bold));
     if (winnerIdx >= 0)
     {
         g.setColour (state.getPlayers()[(size_t) winnerIdx].colour);
-        const juce::String msg = "P" + juce::String (winnerIdx + 1)
-                                 + " wins with " + juce::String (topScore);
-        g.drawText (msg, over.removeFromTop (40.0f), juce::Justification::centred, false);
+        g.drawText ("P" + juce::String (winnerIdx + 1) + " wins!",
+                    footer, juce::Justification::centred, false);
     }
     else
     {
         g.setColour (juce::Colours::white);
         g.drawText ("Tied at " + juce::String (topScore),
-                    over.removeFromTop (60.0f), juce::Justification::centred, false);
+                    footer, juce::Justification::centred, false);
     }
 }
 
