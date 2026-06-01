@@ -36,34 +36,38 @@ namespace
         return { kHalf, kHalf };
     }
 
-    void fillCityPatch (juce::Graphics& g, Direction d)
+    // trimStart/trimEnd: inset the trapezoid at the CW-start / CW-end corner
+    // to create a visible gap between disconnected city edges.
+    void fillCityPatch (juce::Graphics& g, Direction d,
+                        bool trimStart = false, bool trimEnd = false)
     {
+        const float t = kCityDepth;
         juce::Path p;
         switch (d)
         {
             case Direction::north:
-                p.startNewSubPath (0.0f, 0.0f);
-                p.lineTo (kTile, 0.0f);
-                p.lineTo (kTile - kCityDepth, kCityDepth);
-                p.lineTo (kCityDepth,         kCityDepth);
+                p.startNewSubPath (trimStart ? t : 0.0f,  0.0f);
+                p.lineTo (trimEnd ? kTile - t : kTile, 0.0f);
+                p.lineTo (kTile - t, t);
+                p.lineTo (t,         t);
                 break;
             case Direction::east:
-                p.startNewSubPath (kTile, 0.0f);
-                p.lineTo (kTile, kTile);
-                p.lineTo (kTile - kCityDepth, kTile - kCityDepth);
-                p.lineTo (kTile - kCityDepth, kCityDepth);
+                p.startNewSubPath (kTile, trimStart ? t : 0.0f);
+                p.lineTo (kTile, trimEnd ? kTile - t : kTile);
+                p.lineTo (kTile - t, kTile - t);
+                p.lineTo (kTile - t, t);
                 break;
             case Direction::south:
-                p.startNewSubPath (kTile, kTile);
-                p.lineTo (0.0f,  kTile);
-                p.lineTo (kCityDepth,         kTile - kCityDepth);
-                p.lineTo (kTile - kCityDepth, kTile - kCityDepth);
+                p.startNewSubPath (trimStart ? kTile - t : kTile, kTile);
+                p.lineTo (trimEnd ? t : 0.0f,  kTile);
+                p.lineTo (t,         kTile - t);
+                p.lineTo (kTile - t, kTile - t);
                 break;
             case Direction::west:
-                p.startNewSubPath (0.0f, kTile);
-                p.lineTo (0.0f, 0.0f);
-                p.lineTo (kCityDepth, kCityDepth);
-                p.lineTo (kCityDepth, kTile - kCityDepth);
+                p.startNewSubPath (0.0f, trimStart ? kTile - t : kTile);
+                p.lineTo (0.0f, trimEnd ? t : 0.0f);
+                p.lineTo (t, t);
+                p.lineTo (t, kTile - t);
                 break;
         }
         p.closeSubPath();
@@ -190,12 +194,46 @@ void TileRenderer::draw (juce::Graphics& g, const PlacedTile& tile)
     g.setColour (fieldColour());
     g.fillRect (juce::Rectangle<float> (0.0f, 0.0f, kTile, kTile));
 
-    // City patches: one trapezoid per city-typed edge, plus fill between
-    // edges that belong to the same connected city feature.
+    // Determine which city edges are connected to their CW/CCW neighbor.
+    // An edge needs trimming at a corner if the adjacent edge is also city
+    // but belongs to a DIFFERENT feature (disconnected).
+    auto connectedAtCorner = [&] (Direction d1, Direction d2) -> bool
+    {
+        if (tile.type->edges[(size_t) d1] != EdgeType::city
+         || tile.type->edges[(size_t) d2] != EdgeType::city)
+            return false;
+
+        for (const auto& f : tile.type->features)
+        {
+            if (f.type != FeatureType::city)
+                continue;
+            bool has1 = false, has2 = false;
+            for (auto e : f.edges)
+            {
+                if (e == d1) has1 = true;
+                if (e == d2) has2 = true;
+            }
+            if (has1 && has2) return true;
+        }
+        return false;
+    };
+
+    auto needsTrim = [&] (Direction d, Direction adjacent) -> bool
+    {
+        return tile.type->edges[(size_t) adjacent] == EdgeType::city
+            && ! connectedAtCorner (d, adjacent);
+    };
+
     g.setColour (cityColour());
     for (auto d : game::allDirections)
-        if (tile.type->edges[(size_t) d] == EdgeType::city)
-            fillCityPatch (g, d);
+    {
+        if (tile.type->edges[(size_t) d] != EdgeType::city)
+            continue;
+
+        auto prev = game::rotateCW (d, 3);
+        auto next = game::rotateCW (d, 1);
+        fillCityPatch (g, d, needsTrim (d, prev), needsTrim (d, next));
+    }
 
     for (const auto& f : tile.type->features)
     {
