@@ -21,27 +21,25 @@ public:
     SoundBank();
     ~SoundBank();
 
-    void play (SoundID id, float gain = 1.0f);
+    void play (SoundID id, float gain = 1.0f, float pan = 0.0f);
+
+    void  setVolume (float v) noexcept { masterVolume = juce::jlimit (0.0f, 1.0f, v); }
+    float getVolume() const noexcept   { return masterVolume; }
 
 private:
     juce::AudioDeviceManager deviceManager;
     juce::AudioFormatManager formatManager;
-    juce::MixerAudioSource   mixer;
     juce::AudioSourcePlayer   player;
 
-    struct Sound
-    {
-        std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
-        std::unique_ptr<juce::MemoryBlock>             data;
-    };
-
     std::array<juce::AudioBuffer<float>, (size_t) SoundID::count> buffers;
+    float masterVolume = 1.0f;
 
     struct Voice
     {
         juce::AudioBuffer<float>* buffer = nullptr;
         int                       position = 0;
         float                     gain = 1.0f;
+        float                     pan  = 0.0f;
         bool                      active = false;
     };
 
@@ -56,6 +54,7 @@ private:
 
         std::array<Voice, kMaxVoices> voices {};
         juce::SpinLock lock;
+        std::atomic<float> volume { 1.0f };
     };
 
     VoiceMixer voiceMixer;

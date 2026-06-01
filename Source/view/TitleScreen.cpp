@@ -1,6 +1,8 @@
 #include "TitleScreen.h"
 #include "MeepleRenderer.h"
 
+#include <cmath>
+
 namespace view
 {
 
@@ -15,10 +17,12 @@ namespace
 }
 
 TitleScreen::TitleScreen (gin::GameControllerManager& controllers_,
-                         int initialPlayers, int initialTileMultiplier)
+                         int initialPlayers, int initialTileMultiplier,
+                         float initialVolume)
     : controllers (controllers_),
       numPlayers (juce::jlimit (2, 4, initialPlayers)),
-      tileMultiplier (juce::jlimit (kMinMultiplier, kMaxMultiplier, initialTileMultiplier))
+      tileMultiplier (juce::jlimit (kMinMultiplier, kMaxMultiplier, initialTileMultiplier)),
+      volume (juce::jlimit (0.0f, 1.0f, initialVolume))
 {
     setWantsKeyboardFocus (true);
     juce::Timer::callAfterDelay (100, [this]
@@ -41,6 +45,10 @@ bool TitleScreen::keyPressed (const juce::KeyPress& key)
         tileMultiplier = juce::jmin (tileMultiplier + 1, kMaxMultiplier);
     else if (key == juce::KeyPress::downKey)
         tileMultiplier = juce::jmax (tileMultiplier - 1, kMinMultiplier);
+    else if (key.getTextCharacter() == '+' || key.getTextCharacter() == '=')
+        volume = juce::jmin (1.0f, volume + 0.1f);
+    else if (key.getTextCharacter() == '-')
+        volume = juce::jmax (0.0f, volume - 0.1f);
     else
         startPressed = true;
 
@@ -136,16 +144,25 @@ void TitleScreen::paint (juce::Graphics& g)
     g.drawText (multText, (int)bounds.getX(), (int)(cy * 0.8f), (int)bounds.getWidth(), 26,
                 juce::Justification::centred);
 
-    // Control hints under the multiplier readout.
+    // Volume
+    g.setFont (juce::Font (juce::FontOptions().withHeight (18.0f)));
+    g.setColour (juce::Colours::white.withAlpha (0.55f));
+    int volPct = (int) std::round (volume * 100.0f);
+    g.drawText ("Volume: " + juce::String (volPct) + "%",
+                (int)bounds.getX(), (int)(cy * 0.88f), (int)bounds.getWidth(), 24,
+                juce::Justification::centred);
+
+    // Control hints
     g.setFont (juce::Font (juce::FontOptions().withHeight (13.0f)));
     g.setColour (juce::Colours::white.withAlpha (0.35f));
     g.drawText (juce::String::fromUTF8 ("LB/RB or \xe2\x86\x90\xe2\x86\x92  Players")
-                + juce::String::fromUTF8 ("   \xe2\x80\xa2   DPad U/D or \xe2\x86\x91\xe2\x86\x93  Tiles"),
-                (int)bounds.getX(), (int)(cy * 0.9f), (int)bounds.getWidth(), 22,
+                + juce::String::fromUTF8 ("   \xe2\x80\xa2   DPad U/D or \xe2\x86\x91\xe2\x86\x93  Tiles")
+                + "   +/-  Volume",
+                (int)bounds.getX(), (int)(cy * 0.95f), (int)bounds.getWidth(), 22,
                 juce::Justification::centred);
 
     // Meeples row
-    float meepleY = cy * 1.05f;
+    float meepleY = cy * 1.35f;
     float spacing = 120.0f;
     float startX  = cx - (float)(numPlayers - 1) * spacing * 0.5f;
 

@@ -10,7 +10,8 @@ class TitleScreen : public juce::Component
 {
 public:
     TitleScreen (gin::GameControllerManager& controllers,
-                 int initialPlayers = 2, int initialTileMultiplier = 1);
+                 int initialPlayers = 2, int initialTileMultiplier = 1,
+                 float initialVolume = 1.0f);
 
     void paint (juce::Graphics& g) override;
     void parentHierarchyChanged() override;
@@ -18,9 +19,10 @@ public:
 
     void update();
 
-    int  getNumPlayers()     const noexcept { return numPlayers; }
-    int  getTileMultiplier() const noexcept { return tileMultiplier; }
-    bool isStartPressed()    const noexcept { return startPressed; }
+    int   getNumPlayers()     const noexcept { return numPlayers; }
+    int   getTileMultiplier() const noexcept { return tileMultiplier; }
+    float getVolume()         const noexcept { return volume; }
+    bool  isStartPressed()    const noexcept { return startPressed; }
 
     bool isControllerConnected (int slot) const noexcept;
 
@@ -29,9 +31,10 @@ public:
 
 private:
     gin::GameControllerManager& controllers;
-    int  numPlayers     = 2;
-    int  tileMultiplier = 1;
-    bool startPressed   = false;
+    int   numPlayers     = 2;
+    int   tileMultiplier = 1;
+    float volume         = 1.0f;
+    bool  startPressed   = false;
 
     bool prevBumperLeft  = false;
     bool prevBumperRight = false;

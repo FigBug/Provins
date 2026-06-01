@@ -54,7 +54,13 @@ public:
     const std::vector<ScoreEvent>& getScoreEvents() const noexcept { return scoreEvents; }
     void clearScoreEvents() { scoreEvents.clear(); }
 
-    enum class SoundEvent { tilePlace, claim, complete, rotate, gameOver };
+    struct SoundEvent
+    {
+        enum Type { tilePlace, claim, complete, rotate, gameOver };
+        Type               type;
+        juce::Point<float> worldPos;
+    };
+
     const std::vector<SoundEvent>& getSoundEvents() const noexcept { return soundEvents; }
     void clearSoundEvents() { soundEvents.clear(); }
 

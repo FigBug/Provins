@@ -293,7 +293,7 @@ void GameState::returnCompletedMeeples()
         auto blended = juce::Colour::fromFloatRGBA (r / n, g / n, b / n, 1.0f);
 
         scoreEvents.push_back ({ cf.centre, blended, cf.points });
-        soundEvents.push_back (SoundEvent::complete);
+        soundEvents.push_back ({ SoundEvent::complete, cf.centre });
     }
 }
 
@@ -373,8 +373,8 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         // ---- Rotation, edge-triggered
         const bool rotateCW  = c->isButtonDown (B::rightShoulder);
         const bool rotateCCW = c->isButtonDown (B::leftShoulder);
-        if (rotateCW  && ! p.prevRotateCW)  { p.heldRotation = (p.heldRotation + 1) & 3; soundEvents.push_back (SoundEvent::rotate); }
-        if (rotateCCW && ! p.prevRotateCCW) { p.heldRotation = (p.heldRotation + 3) & 3; soundEvents.push_back (SoundEvent::rotate); }
+        if (rotateCW  && ! p.prevRotateCW)  { p.heldRotation = (p.heldRotation + 1) & 3; soundEvents.push_back ({ SoundEvent::rotate, p.position }); }
+        if (rotateCCW && ! p.prevRotateCCW) { p.heldRotation = (p.heldRotation + 3) & 3; soundEvents.push_back ({ SoundEvent::rotate, p.position }); }
         p.prevRotateCW  = rotateCW;
         p.prevRotateCCW = rotateCCW;
 
@@ -409,7 +409,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         {
             board.place (*target, PlacedTile { p.heldTile, p.heldRotation });
             ++p.tilesPlaced;
-            soundEvents.push_back (SoundEvent::tilePlace);
+            soundEvents.push_back ({ SoundEvent::tilePlace, { (float) target->col + 0.5f, (float) target->row + 0.5f } });
             p.heldTile     = deck.draw();
             p.heldRotation = 0;
             p.targetCell.reset();
@@ -450,7 +450,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         {
             p.claims[*p.hoveredClaimable] = { p.position, false };
             --p.meepleSupply;
-            soundEvents.push_back (SoundEvent::claim);
+            soundEvents.push_back ({ SoundEvent::claim, p.position });
             p.lastPlaced.reset();
             p.hoveredClaimable.reset();
         }
@@ -468,7 +468,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         if (endTimer <= 0.0f)
         {
             endTimer = 0.0f;
-            soundEvents.push_back (SoundEvent::gameOver);
+            soundEvents.push_back ({ SoundEvent::gameOver, {} });
         }
     }
 }
@@ -608,7 +608,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
             {
                 board.place (*brain.placeCell, pt);
                 ++p.tilesPlaced;
-                soundEvents.push_back (SoundEvent::tilePlace);
+                soundEvents.push_back ({ SoundEvent::tilePlace, { (float) brain.placeCell->col + 0.5f, (float) brain.placeCell->row + 0.5f } });
                 p.lastPlaced   = *brain.placeCell;
                 p.heldTile     = deck.draw();
                 p.heldRotation = 0;
@@ -656,7 +656,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                         {
                             p.claims[ref] = { p.position, false };
                             --p.meepleSupply;
-                            soundEvents.push_back (SoundEvent::claim);
+                            soundEvents.push_back ({ SoundEvent::claim, p.position });
                         }
 
                         p.lastPlaced.reset();

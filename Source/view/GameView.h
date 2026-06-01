@@ -19,7 +19,7 @@ public:
 private:
     game::GameState& state;
 
-    static constexpr int kPaddingCells = 2;
+    static constexpr int kPaddingCells = 1;
     static constexpr float kCameraSmoothing = 3.0f;
     static constexpr float kScoreAnimDuration = 1.5f;
 

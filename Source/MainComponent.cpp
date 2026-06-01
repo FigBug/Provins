@@ -16,7 +16,8 @@ MainComponent::MainComponent()
 
     titleScreen = std::make_unique<view::TitleScreen> (controllers,
                                                        savedNumPlayers,
-                                                       savedTileMultiplier);
+                                                       savedTileMultiplier,
+                                                       soundBank.getVolume());
     addAndMakeVisible (*titleScreen);
 
     setWantsKeyboardFocus (true);
@@ -39,6 +40,7 @@ void MainComponent::loadSettings()
     {
         savedNumPlayers     = props->getIntValue ("numPlayers", 2);
         savedTileMultiplier = props->getIntValue ("tileMultiplier", 1);
+        soundBank.setVolume ((float) props->getDoubleValue ("volume", 1.0));
     }
 }
 
@@ -48,6 +50,7 @@ void MainComponent::saveSettings()
     {
         props->setValue ("numPlayers",     savedNumPlayers);
         props->setValue ("tileMultiplier", savedTileMultiplier);
+        props->setValue ("volume",         (double) soundBank.getVolume());
         props->saveIfNeeded();
     }
 }
@@ -62,6 +65,7 @@ void MainComponent::startGame()
 
     savedNumPlayers     = numPlayers;
     savedTileMultiplier = tileMultiplier;
+    soundBank.setVolume (titleScreen->getVolume());
     saveSettings();
     bool slotHasController[4] {};
     for (int i = 0; i < 4; ++i)
@@ -131,16 +135,26 @@ void MainComponent::timerCallback()
 
     state->update (dt, controllers);
 
-    for (auto ev : state->getSoundEvents())
+    for (const auto& ev : state->getSoundEvents())
     {
         using SE = game::GameState::SoundEvent;
-        switch (ev)
+
+        float pan = 0.0f;
+        auto bounds = state->getBoard().bounds();
+        if (bounds.has_value() && bounds->getWidth() > 0)
         {
-            case SE::tilePlace: soundBank.play (audio::SoundID::tilePlace); break;
-            case SE::claim:     soundBank.play (audio::SoundID::claim);     break;
-            case SE::complete:  soundBank.play (audio::SoundID::complete);  break;
-            case SE::rotate:    soundBank.play (audio::SoundID::rotate, 0.5f); break;
-            case SE::gameOver:  soundBank.play (audio::SoundID::gameOver);  break;
+            float centre = bounds->toFloat().getCentreX();
+            float halfW  = bounds->toFloat().getWidth() * 0.5f + 1.0f;
+            pan = juce::jlimit (-1.0f, 1.0f, (ev.worldPos.x - centre) / halfW);
+        }
+
+        switch (ev.type)
+        {
+            case SE::tilePlace: soundBank.play (audio::SoundID::tilePlace, 1.0f, pan); break;
+            case SE::claim:     soundBank.play (audio::SoundID::claim,     1.0f, pan); break;
+            case SE::complete:  soundBank.play (audio::SoundID::complete,  1.0f, pan); break;
+            case SE::rotate:    soundBank.play (audio::SoundID::rotate,    0.5f, pan); break;
+            case SE::gameOver:  soundBank.play (audio::SoundID::gameOver);             break;
         }
     }
     state->clearSoundEvents();
@@ -179,7 +193,8 @@ void MainComponent::returnToTitle()
 
     titleScreen = std::make_unique<view::TitleScreen> (controllers,
                                                       savedNumPlayers,
-                                                      savedTileMultiplier);
+                                                      savedTileMultiplier,
+                                                      soundBank.getVolume());
     addAndMakeVisible (*titleScreen);
     resized();
     grabKeyboardFocus();
