@@ -230,6 +230,14 @@ bool GameState::isClaimedByAnyone (const FeatureRef& ref) const
 
 void GameState::returnCompletedMeeples()
 {
+    struct CompletedFeature
+    {
+        juce::Point<float> centre;
+        int                points;
+        std::vector<juce::Colour> claimants;
+    };
+    std::map<FeatureRef, CompletedFeature> justCompleted;
+
     for (auto& p : players)
     {
         for (auto& [ref, info] : p.claims)
@@ -238,12 +246,54 @@ void GameState::returnCompletedMeeples()
                 continue;
 
             const auto inst = traceFeature (board, ref);
-            if (inst.isComplete)
+            if (! inst.isComplete)
+                continue;
+
+            info.meepleReturned = true;
+            ++p.meepleSupply;
+
+            auto canonRef = inst.segments.empty() ? ref
+                : *std::min_element (inst.segments.begin(), inst.segments.end());
+
+            auto& cf = justCompleted[canonRef];
+            if (cf.claimants.empty())
             {
-                info.meepleReturned = true;
-                ++p.meepleSupply;
+                cf.points = scoreOf (inst, board);
+
+                float cx = 0.0f, cy = 0.0f;
+                for (const auto& seg : inst.segments)
+                {
+                    cx += (float) seg.cell.col + 0.5f;
+                    cy += (float) seg.cell.row + 0.5f;
+                }
+                if (! inst.segments.empty())
+                {
+                    cx /= (float) inst.segments.size();
+                    cy /= (float) inst.segments.size();
+                }
+                cf.centre = { cx, cy };
             }
+            cf.claimants.push_back (p.colour);
         }
+    }
+
+    for (const auto& [ref, cf] : justCompleted)
+    {
+        if (cf.points <= 0 || cf.claimants.empty())
+            continue;
+
+        float r = 0.0f, g = 0.0f, b = 0.0f;
+        for (const auto& c : cf.claimants)
+        {
+            r += c.getFloatRed();
+            g += c.getFloatGreen();
+            b += c.getFloatBlue();
+        }
+        float n = (float) cf.claimants.size();
+        auto blended = juce::Colour::fromFloatRGBA (r / n, g / n, b / n, 1.0f);
+
+        scoreEvents.push_back ({ cf.centre, blended, cf.points });
+        soundEvents.push_back (SoundEvent::complete);
     }
 }
 
@@ -323,8 +373,8 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         // ---- Rotation, edge-triggered
         const bool rotateCW  = c->isButtonDown (B::rightShoulder);
         const bool rotateCCW = c->isButtonDown (B::leftShoulder);
-        if (rotateCW  && ! p.prevRotateCW)  p.heldRotation = (p.heldRotation + 1) & 3;
-        if (rotateCCW && ! p.prevRotateCCW) p.heldRotation = (p.heldRotation + 3) & 3;
+        if (rotateCW  && ! p.prevRotateCW)  { p.heldRotation = (p.heldRotation + 1) & 3; soundEvents.push_back (SoundEvent::rotate); }
+        if (rotateCCW && ! p.prevRotateCCW) { p.heldRotation = (p.heldRotation + 3) & 3; soundEvents.push_back (SoundEvent::rotate); }
         p.prevRotateCW  = rotateCW;
         p.prevRotateCCW = rotateCCW;
 
@@ -359,6 +409,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         {
             board.place (*target, PlacedTile { p.heldTile, p.heldRotation });
             ++p.tilesPlaced;
+            soundEvents.push_back (SoundEvent::tilePlace);
             p.heldTile     = deck.draw();
             p.heldRotation = 0;
             p.targetCell.reset();
@@ -399,6 +450,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         {
             p.claims[*p.hoveredClaimable] = { p.position, false };
             --p.meepleSupply;
+            soundEvents.push_back (SoundEvent::claim);
             p.lastPlaced.reset();
             p.hoveredClaimable.reset();
         }
@@ -414,7 +466,10 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
     {
         endTimer -= dt;
         if (endTimer <= 0.0f)
+        {
             endTimer = 0.0f;
+            soundEvents.push_back (SoundEvent::gameOver);
+        }
     }
 }
 
@@ -553,6 +608,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
             {
                 board.place (*brain.placeCell, pt);
                 ++p.tilesPlaced;
+                soundEvents.push_back (SoundEvent::tilePlace);
                 p.lastPlaced   = *brain.placeCell;
                 p.heldTile     = deck.draw();
                 p.heldRotation = 0;
@@ -600,6 +656,7 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                         {
                             p.claims[ref] = { p.position, false };
                             --p.meepleSupply;
+                            soundEvents.push_back (SoundEvent::claim);
                         }
 
                         p.lastPlaced.reset();

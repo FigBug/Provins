@@ -12,7 +12,11 @@ MainComponent::MainComponent()
     tilesJson = juce::String::fromUTF8 (BinaryData::tiles_json,
                                         BinaryData::tiles_jsonSize);
 
-    titleScreen = std::make_unique<view::TitleScreen> (controllers);
+    loadSettings();
+
+    titleScreen = std::make_unique<view::TitleScreen> (controllers,
+                                                       savedNumPlayers,
+                                                       savedTileMultiplier);
     addAndMakeVisible (*titleScreen);
 
     setWantsKeyboardFocus (true);
@@ -22,6 +26,32 @@ MainComponent::MainComponent()
 
 MainComponent::~MainComponent() = default;
 
+void MainComponent::loadSettings()
+{
+    juce::PropertiesFile::Options opts;
+    opts.applicationName     = "Provins";
+    opts.folderName          = "Provins";
+    opts.filenameSuffix       = ".settings";
+    opts.osxLibrarySubFolder = "Application Support";
+    appProperties.setStorageParameters (opts);
+
+    if (auto* props = appProperties.getUserSettings())
+    {
+        savedNumPlayers     = props->getIntValue ("numPlayers", 2);
+        savedTileMultiplier = props->getIntValue ("tileMultiplier", 1);
+    }
+}
+
+void MainComponent::saveSettings()
+{
+    if (auto* props = appProperties.getUserSettings())
+    {
+        props->setValue ("numPlayers",     savedNumPlayers);
+        props->setValue ("tileMultiplier", savedTileMultiplier);
+        props->saveIfNeeded();
+    }
+}
+
 void MainComponent::startGame()
 {
     inGame = true;
@@ -29,6 +59,10 @@ void MainComponent::startGame()
 
     int numPlayers     = titleScreen->getNumPlayers();
     int tileMultiplier = titleScreen->getTileMultiplier();
+
+    savedNumPlayers     = numPlayers;
+    savedTileMultiplier = tileMultiplier;
+    saveSettings();
     bool slotHasController[4] {};
     for (int i = 0; i < 4; ++i)
         slotHasController[i] = titleScreen->isControllerConnected (i);
@@ -96,6 +130,21 @@ void MainComponent::timerCallback()
     }
 
     state->update (dt, controllers);
+
+    for (auto ev : state->getSoundEvents())
+    {
+        using SE = game::GameState::SoundEvent;
+        switch (ev)
+        {
+            case SE::tilePlace: soundBank.play (audio::SoundID::tilePlace); break;
+            case SE::claim:     soundBank.play (audio::SoundID::claim);     break;
+            case SE::complete:  soundBank.play (audio::SoundID::complete);  break;
+            case SE::rotate:    soundBank.play (audio::SoundID::rotate, 0.5f); break;
+            case SE::gameOver:  soundBank.play (audio::SoundID::gameOver);  break;
+        }
+    }
+    state->clearSoundEvents();
+
     gameView->update (dt);
     gameView->repaint();
     hud->repaint();
@@ -128,7 +177,9 @@ void MainComponent::returnToTitle()
     hud.reset();
     state.reset();
 
-    titleScreen = std::make_unique<view::TitleScreen> (controllers);
+    titleScreen = std::make_unique<view::TitleScreen> (controllers,
+                                                      savedNumPlayers,
+                                                      savedTileMultiplier);
     addAndMakeVisible (*titleScreen);
     resized();
     grabKeyboardFocus();

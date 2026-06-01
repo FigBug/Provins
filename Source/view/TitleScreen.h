@@ -9,7 +9,8 @@ namespace view
 class TitleScreen : public juce::Component
 {
 public:
-    TitleScreen (gin::GameControllerManager& controllers);
+    TitleScreen (gin::GameControllerManager& controllers,
+                 int initialPlayers = 2, int initialTileMultiplier = 1);
 
     void paint (juce::Graphics& g) override;
     void parentHierarchyChanged() override;

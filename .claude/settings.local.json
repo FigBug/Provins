@@ -18,7 +18,24 @@
       "Bash(open *)",
       "Bash(killall Provins)",
       "Bash(gh repo *)",
-      "Bash(gh secret *)"
+      "Bash(gh secret *)",
+      "WebSearch",
+      "Read(//private/tmp/**)",
+      "Bash(curl -L -o kenney-ui-audio.zip \"https://kenney.nl/media/assets/ui-audio.zip\")",
+      "Bash(unzip -l kenney-ui-audio.zip)",
+      "WebFetch(domain:kenney.nl)",
+      "Bash(curl -L -o kenney-ui-audio.zip \"https://kenney.nl/media/pages/assets/ui-audio/490d233f68-1677590494/kenney_ui-audio.zip\")",
+      "Bash(curl -L -o kenney-impact.zip \"https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip\")",
+      "Bash(curl -L -o kenney-digital.zip \"https://kenney.nl/media/pages/assets/digital-audio/216eac4753-1677590265/kenney_digital-audio.zip\")",
+      "Bash(mkdir -p kenney-sounds)",
+      "Bash(unzip -o kenney-ui-audio.zip -d kenney-sounds/ui)",
+      "Bash(unzip -o kenney-impact.zip -d kenney-sounds/impact)",
+      "Bash(unzip -o kenney-digital.zip -d kenney-sounds/digital)",
+      "Bash(cp /tmp/kenney-sounds/impact/Audio/impactWood_light_000.ogg /Users/rrabien/dev.github/Provins/Assets/sfx/tile_place.ogg)",
+      "Bash(cp /tmp/kenney-sounds/ui/Audio/switch3.ogg /Users/rrabien/dev.github/Provins/Assets/sfx/claim.ogg)",
+      "Bash(cp /tmp/kenney-sounds/digital/Audio/highUp.ogg /Users/rrabien/dev.github/Provins/Assets/sfx/complete.ogg)",
+      "Bash(cp /tmp/kenney-sounds/ui/Audio/click1.ogg /Users/rrabien/dev.github/Provins/Assets/sfx/rotate.ogg)",
+      "Bash(cp /tmp/kenney-sounds/impact/Audio/impactBell_heavy_001.ogg /Users/rrabien/dev.github/Provins/Assets/sfx/gameover.ogg)"
     ]
   }
 }

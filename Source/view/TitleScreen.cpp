@@ -14,8 +14,11 @@ namespace
     };
 }
 
-TitleScreen::TitleScreen (gin::GameControllerManager& controllers_)
-    : controllers (controllers_)
+TitleScreen::TitleScreen (gin::GameControllerManager& controllers_,
+                         int initialPlayers, int initialTileMultiplier)
+    : controllers (controllers_),
+      numPlayers (juce::jlimit (2, 4, initialPlayers)),
+      tileMultiplier (juce::jlimit (kMinMultiplier, kMaxMultiplier, initialTileMultiplier))
 {
     setWantsKeyboardFocus (true);
     juce::Timer::callAfterDelay (100, [this]

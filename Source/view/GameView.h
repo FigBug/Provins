@@ -11,19 +11,29 @@ namespace view
 class GameView : public juce::Component
 {
 public:
-    explicit GameView (const game::GameState& state);
+    explicit GameView (game::GameState& state);
 
     void paint (juce::Graphics&) override;
     void update (float dt);
 
 private:
-    const game::GameState& state;
+    game::GameState& state;
 
     static constexpr int kPaddingCells = 2;
     static constexpr float kCameraSmoothing = 3.0f;
+    static constexpr float kScoreAnimDuration = 1.5f;
 
     juce::Rectangle<float> currentWorldBounds { -2.0f, -2.0f, 5.0f, 5.0f };
     bool                   cameraInitialised = false;
+
+    struct ScoreAnim
+    {
+        juce::Point<float> worldPos;
+        juce::Colour       colour;
+        int                points;
+        float              age = 0.0f;
+    };
+    std::vector<ScoreAnim> scoreAnims;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GameView)
 };

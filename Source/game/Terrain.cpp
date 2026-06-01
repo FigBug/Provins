@@ -9,8 +9,9 @@ namespace
 {
     // NB: keep in sync with TileRenderer.cpp's kRoadWidth (full stroke width)
     // and kCityDepth.
-    constexpr float kRoadHalfWidth = 0.05f;
-    constexpr float kCityDepth     = 0.30f;
+    constexpr float kRoadHalfWidth         = 0.05f;
+    constexpr float kRoadHalfWidthMovement = 0.15f;
+    constexpr float kCityDepth             = 0.30f;
 
     /** Rotate `p` counter-clockwise by `steps` 90° increments around the tile
         centre (0.5, 0.5). Used to convert a world-oriented local position into
@@ -102,7 +103,7 @@ EdgeType terrainAt (const PlacedTile& tile, juce::Point<float> local) noexcept
         {
             const auto a = edgeMidpoint (edge);
             const juce::Point<float> b { 0.5f, 0.5f };
-            if (distSqToSegment (canonical, a, b) <= kRoadHalfWidth * kRoadHalfWidth)
+            if (distSqToSegment (canonical, a, b) <= kRoadHalfWidthMovement * kRoadHalfWidthMovement)
                 return EdgeType::road;
         }
     }

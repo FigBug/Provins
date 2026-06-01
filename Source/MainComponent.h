@@ -3,6 +3,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <gin_controllers/gin_controllers.h>
 
+#include "audio/SoundBank.h"
 #include "game/GameState.h"
 #include "view/GameView.h"
 #include "view/Hud.h"
@@ -25,6 +26,7 @@ private:
     void startGame();
     void returnToTitle();
 
+    audio::SoundBank                      soundBank;
     gin::GameControllerManager            controllers;
     std::unique_ptr<view::TitleScreen>    titleScreen;
     std::unique_ptr<game::GameState>      state;
@@ -34,6 +36,12 @@ private:
     bool                                  inGame     = false;
     bool                                  endScreenReady = false;
     juce::String                          tilesJson;
+    juce::ApplicationProperties            appProperties;
+    int                                   savedNumPlayers     = 2;
+    int                                   savedTileMultiplier = 1;
+
+    void loadSettings();
+    void saveSettings();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

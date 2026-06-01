@@ -44,6 +44,20 @@ public:
 
     ScoreBreakdown computeScoreBreakdown (int playerIndex) const;
 
+    struct ScoreEvent
+    {
+        juce::Point<float> position;
+        juce::Colour       colour;
+        int                points = 0;
+    };
+
+    const std::vector<ScoreEvent>& getScoreEvents() const noexcept { return scoreEvents; }
+    void clearScoreEvents() { scoreEvents.clear(); }
+
+    enum class SoundEvent { tilePlace, claim, complete, rotate, gameOver };
+    const std::vector<SoundEvent>& getSoundEvents() const noexcept { return soundEvents; }
+    void clearSoundEvents() { soundEvents.clear(); }
+
     bool isGameOver() const noexcept;
     bool allTilesPlaced() const noexcept;
     float getEndTimer() const noexcept { return endTimer; }
@@ -66,11 +80,13 @@ private:
     bool aiPlanClaim       (Player& p, AiBrain& brain);
     void aiMoveAlongPath   (Player& p, AiBrain& brain, float dt);
 
-    TileDeck            deck;
-    Board               board;
-    std::vector<Player> players;
-    int                 maxPlayers = 4;
-    float               endTimer   = -1.0f;
+    TileDeck                 deck;
+    Board                    board;
+    std::vector<Player>      players;
+    std::vector<ScoreEvent>  scoreEvents;
+    std::vector<SoundEvent>  soundEvents;
+    int                      maxPlayers = 4;
+    float                    endTimer   = -1.0f;
 };
 
 } // namespace game

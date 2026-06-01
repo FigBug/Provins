@@ -2,6 +2,8 @@
 #include "TileRenderer.h"
 #include "MeepleRenderer.h"
 
+#include <algorithm>
+
 namespace view
 {
 
@@ -20,7 +22,7 @@ namespace
     }
 }
 
-GameView::GameView (const game::GameState& s) : state (s) {}
+GameView::GameView (game::GameState& s) : state (s) {}
 
 void GameView::update (float dt)
 {
@@ -48,6 +50,18 @@ void GameView::update (float dt)
         float h = currentWorldBounds.getHeight()  + (target.getHeight() - currentWorldBounds.getHeight()) * t;
         currentWorldBounds = { x, y, w, h };
     }
+
+    for (const auto& ev : state.getScoreEvents())
+        scoreAnims.push_back ({ ev.position, ev.colour, ev.points, 0.0f });
+    state.clearScoreEvents();
+
+    for (auto& a : scoreAnims)
+        a.age += dt;
+
+    scoreAnims.erase (
+        std::remove_if (scoreAnims.begin(), scoreAnims.end(),
+                        [](const ScoreAnim& a) { return a.age >= kScoreAnimDuration; }),
+        scoreAnims.end());
 }
 
 void GameView::paint (juce::Graphics& g)
@@ -171,6 +185,34 @@ void GameView::paint (juce::Graphics& g)
         g.fillRoundedRectangle (r.toFloat(), 4.0f);
         g.setColour (p.colour);
         g.drawText (label, r, juce::Justification::centred, false);
+    }
+
+    // ---- Score pop-up animations.
+    for (const auto& a : scoreAnims)
+    {
+        float t = a.age / kScoreAnimDuration;
+        float alpha = juce::jmin (1.0f, 2.0f * (1.0f - t));
+        float rise  = t * 80.0f;
+        float fontSize = 28.0f + t * 20.0f;
+
+        auto screenPos = a.worldPos;
+        screenPos.applyTransform (worldToScreen);
+
+        auto text = "+" + juce::String (a.points);
+        int tx = (int)(screenPos.x - 60);
+        int ty = (int)(screenPos.y - 40 - rise);
+
+        g.setFont (juce::Font (juce::FontOptions().withHeight (fontSize)).boldened());
+
+        g.setColour (juce::Colours::black.withAlpha (alpha * 0.6f));
+        for (int dx = -1; dx <= 1; ++dx)
+            for (int dy = -1; dy <= 1; ++dy)
+                if (dx != 0 || dy != 0)
+                    g.drawText (text, tx + dx, ty + dy, 120, 40,
+                                juce::Justification::centred, false);
+
+        g.setColour (a.colour.withAlpha (alpha));
+        g.drawText (text, tx, ty, 120, 40, juce::Justification::centred, false);
     }
 }
 
