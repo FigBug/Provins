@@ -87,7 +87,7 @@ FeatureInstance traceFeature (const Board& board, FeatureRef start)
                     continue;
 
                 auto nbrWorldHE       = oppositeHalfEdge (worldHE);
-                auto nbrCanonicalHE   = rotateHalfEdgeCW (nbrWorldHE, -nbrTile->rotation & 7);
+                auto nbrCanonicalHE   = rotateHalfEdgeCW (nbrWorldHE, (-nbrTile->rotation) & 7);
 
                 int nbrFi = findFieldWithHalfEdge (*nbrTile, nbrCanonicalHE);
                 if (nbrFi < 0)
@@ -113,7 +113,7 @@ FeatureInstance traceFeature (const Board& board, FeatureRef start)
                 }
 
                 const auto incomingWorld     = opposite (worldEdge);
-                const auto incomingCanonical = rotateCW (incomingWorld, -nbrTile->rotation & 3);
+                const auto incomingCanonical = rotateCW (incomingWorld, (-nbrTile->rotation) & 3);
 
                 const int nbrFeatureIdx = findFeatureWithEdge (*nbrTile, inst.type, incomingCanonical);
                 if (nbrFeatureIdx < 0)

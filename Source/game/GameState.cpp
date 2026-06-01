@@ -394,7 +394,8 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
 
         // ---- Claim (B), edge-triggered.
         const bool claim = c->isButtonDown (B::faceRight);
-        if (claim && ! p.prevClaim && p.hoveredClaimable.has_value())
+        if (claim && ! p.prevClaim && p.hoveredClaimable.has_value()
+            && p.meeplesAvailable() > 0)
         {
             p.claims[*p.hoveredClaimable] = { p.position, false };
             --p.meepleSupply;
