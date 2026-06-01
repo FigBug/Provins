@@ -13,9 +13,13 @@ namespace game
 class TileDeck
 {
 public:
-    /** Parses tiles.json (as bundled in BinaryData). Throws via juce assertion
-        on malformed input. */
-    explicit TileDeck (const juce::String& json, juce::uint32 randomSeed = 0);
+    /** Parses tiles.json (as bundled in BinaryData). `tileMultiplier` scales
+        every tile type's count by N (1..10) so games can be made longer
+        without changing the underlying tile distribution. The start tile is
+        still reserved as a single copy regardless of multiplier. */
+    explicit TileDeck (const juce::String& json,
+                       int tileMultiplier = 1,
+                       juce::uint32 randomSeed = 0);
 
     /** Returns the single tile reserved as the start tile (canonical orientation 0). */
     const TileType* getStartTileType() const noexcept   { return startTile; }

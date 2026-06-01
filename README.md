@@ -92,4 +92,8 @@ The game has no external assets — all rendering is procedural and the tile def
 
 ## License
 
-Copyright Roland Rabien. All rights reserved.
+Provins is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+Provins is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+See the [LICENSE](LICENSE) file for the full license text.

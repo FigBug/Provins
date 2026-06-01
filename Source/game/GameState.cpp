@@ -139,8 +139,11 @@ namespace
 
 }
 
-GameState::GameState (const juce::String& tilesJson, int maxPlayers_, juce::uint32 randomSeed)
-    : deck (tilesJson, randomSeed), maxPlayers (maxPlayers_)
+GameState::GameState (const juce::String& tilesJson,
+                      int maxPlayers_,
+                      int tileMultiplier,
+                      juce::uint32 randomSeed)
+    : deck (tilesJson, tileMultiplier, randomSeed), maxPlayers (maxPlayers_)
 {
     PlacedTile start;
     start.type     = deck.getStartTileType();

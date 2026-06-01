@@ -27,7 +27,8 @@ void MainComponent::startGame()
     inGame = true;
     endScreenReady = false;
 
-    int numPlayers = titleScreen->getNumPlayers();
+    int numPlayers     = titleScreen->getNumPlayers();
+    int tileMultiplier = titleScreen->getTileMultiplier();
     bool slotHasController[4] {};
     for (int i = 0; i < 4; ++i)
         slotHasController[i] = titleScreen->isControllerConnected (i);
@@ -35,7 +36,7 @@ void MainComponent::startGame()
     removeChildComponent (titleScreen.get());
     titleScreen.reset();
 
-    state    = std::make_unique<game::GameState> (tilesJson, numPlayers);
+    state    = std::make_unique<game::GameState> (tilesJson, numPlayers, tileMultiplier);
     gameView = std::make_unique<view::GameView>  (*state);
     hud      = std::make_unique<view::Hud>       (*state);
 

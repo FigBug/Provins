@@ -38,8 +38,9 @@ namespace
     }
 }
 
-TileDeck::TileDeck (const juce::String& json, juce::uint32 randomSeed)
+TileDeck::TileDeck (const juce::String& json, int tileMultiplier, juce::uint32 randomSeed)
 {
+    tileMultiplier = juce::jlimit (1, 10, tileMultiplier);
     const auto parsed = juce::JSON::parse (json);
     jassert (parsed.isObject());
 
@@ -167,14 +168,15 @@ TileDeck::TileDeck (const juce::String& json, juce::uint32 randomSeed)
         types.push_back (std::move (t));
     }
 
-    // Build the draw pile: every TileType contributes `count` instances.
+    // Build the draw pile: every TileType contributes (count * tileMultiplier)
+    // instances. The start tile is still reserved as a single copy below.
     int totalInstances = 0;
     for (const auto& t : types)
-        totalInstances += t.count;
+        totalInstances += t.count * tileMultiplier;
 
     drawPile.reserve ((size_t) totalInstances);
     for (const auto& t : types)
-        for (int i = 0; i < t.count; ++i)
+        for (int i = 0; i < t.count * tileMultiplier; ++i)
             drawPile.push_back (&t);
 
     // Reserve the start tile (one copy of the type whose id == meta.startTile).

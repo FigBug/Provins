@@ -15,7 +15,10 @@ namespace game
 class GameState
 {
 public:
-    explicit GameState (const juce::String& tilesJson, int maxPlayers = 4, juce::uint32 randomSeed = 0);
+    explicit GameState (const juce::String& tilesJson,
+                        int maxPlayers     = 4,
+                        int tileMultiplier = 1,
+                        juce::uint32 randomSeed = 0);
 
     const TileDeck& getDeck()  const noexcept   { return deck; }
     const Board&    getBoard() const noexcept   { return board; }
