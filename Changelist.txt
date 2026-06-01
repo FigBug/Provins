@@ -1,3 +1,7 @@
+1.0.1:
+- Improve sound effects
+- Add volume
+
 1.0.0:
 
 - Initial version
