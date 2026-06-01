@@ -20,8 +20,9 @@ namespace
     // are canonical (rotation already applied to the Graphics context).
     constexpr float kTile     = 1.0f;
     constexpr float kHalf     = 0.5f;
-    constexpr float kCityDepth = 0.30f;   // how far a city patch reaches inward
-    constexpr float kRoadWidth = 0.10f;
+    constexpr float kCityDepth          = 0.30f;
+    constexpr float kRoadWidth          = 0.10f;
+    constexpr float kIntersectionRadius = 0.10f;
 
     juce::Point<float> edgeMidpoint (Direction d) noexcept
     {
@@ -70,16 +71,32 @@ namespace
         g.fillPath (p);
     }
 
-    void drawRoadSegment (juce::Graphics& g, Direction d)
+    void drawRoadSegment (juce::Graphics& g, Direction d, bool stopShort)
     {
         const auto from = edgeMidpoint (d);
         const juce::Point<float> centre { kHalf, kHalf };
 
-        // Slight overdraw so adjacent segments meet cleanly at the centre.
-        juce::Line<float> line (from, centre);
-        g.drawLine (line.getStartX(), line.getStartY(),
-                    line.getEndX(),   line.getEndY(),
-                    kRoadWidth);
+        auto to = centre;
+        if (stopShort)
+        {
+            auto diff = centre - from;
+            float len = diff.getDistanceFromOrigin();
+            float shortenBy = kIntersectionRadius + kRoadWidth * 0.5f;
+            if (len > shortenBy)
+                to = from + diff * ((len - shortenBy) / len);
+        }
+
+        g.drawLine (from.x, from.y, to.x, to.y, kRoadWidth);
+    }
+
+    void drawIntersection (juce::Graphics& g)
+    {
+        g.setColour (TileRenderer::roadColour());
+        g.fillEllipse (kHalf - kIntersectionRadius, kHalf - kIntersectionRadius,
+                       kIntersectionRadius * 2.0f, kIntersectionRadius * 2.0f);
+        g.setColour (TileRenderer::borderColour());
+        g.drawEllipse (kHalf - kIntersectionRadius, kHalf - kIntersectionRadius,
+                       kIntersectionRadius * 2.0f, kIntersectionRadius * 2.0f, 0.012f);
     }
 
     void drawCloister (juce::Graphics& g)
@@ -129,15 +146,25 @@ void TileRenderer::draw (juce::Graphics& g, const PlacedTile& tile)
         if (tile.type->edges[(size_t) d] == EdgeType::city)
             fillCityPatch (g, d);
 
-    // Road segments — one stroke per road-edge in each road feature.
+    // Count total road edges to detect intersections (3+ = junction).
+    int roadEdgeCount = 0;
+    for (const auto& f : tile.type->features)
+        if (f.type == FeatureType::road)
+            roadEdgeCount += (int) f.edges.size();
+
+    bool hasIntersection = roadEdgeCount >= 3;
+
     g.setColour (roadColour());
     for (const auto& f : tile.type->features)
     {
         if (f.type != FeatureType::road)
             continue;
         for (auto d : f.edges)
-            drawRoadSegment (g, d);
+            drawRoadSegment (g, d, hasIntersection);
     }
+
+    if (hasIntersection)
+        drawIntersection (g);
 
     // Cloister marker.
     for (const auto& f : tile.type->features)

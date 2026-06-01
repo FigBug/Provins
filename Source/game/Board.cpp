@@ -9,6 +9,11 @@ void Board::place (GridCoord c, PlacedTile t)
     tiles[c] = t;
 }
 
+void Board::remove (GridCoord c)
+{
+    tiles.erase (c);
+}
+
 const PlacedTile* Board::at (GridCoord c) const noexcept
 {
     auto it = tiles.find (c);

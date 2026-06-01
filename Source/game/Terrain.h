@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Tile.h"
-#include <juce_graphics/juce_graphics.h>
+#include <JuceHeader.h>
 #include <optional>
 
 namespace game

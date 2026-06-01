@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../game/GameState.h"
-#include <juce_gui_basics/juce_gui_basics.h>
+#include <JuceHeader.h>
 
 namespace view
 {

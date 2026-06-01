@@ -175,10 +175,34 @@ std::optional<TileFeatureSample>
                 return TileFeatureSample { FeatureType::cloister, (int) fi };
     }
 
-    // Field — fallback to the synthesized field feature (if the tile has one).
-    for (size_t fi = 0; fi < tile.type->features.size(); ++fi)
-        if (tile.type->features[fi].type == FeatureType::field)
-            return TileFeatureSample { FeatureType::field, (int) fi };
+    // Field — determine quadrant to pick the correct field region.
+    // Each quadrant maps to a corner pair of half-edges.
+    {
+        HalfEdge targetHE;
+        if (canonical.x >= 0.5f && canonical.y < 0.5f)
+            targetHE = HalfEdge::NE;   // NE quadrant → NE or EN
+        else if (canonical.x >= 0.5f)
+            targetHE = HalfEdge::ES;   // SE quadrant → ES or SE
+        else if (canonical.y >= 0.5f)
+            targetHE = HalfEdge::SW;   // SW quadrant → SW or WS
+        else
+            targetHE = HalfEdge::WN;   // NW quadrant → WN or NW
+
+        for (size_t fi = 0; fi < tile.type->features.size(); ++fi)
+        {
+            const auto& f = tile.type->features[fi];
+            if (f.type != FeatureType::field)
+                continue;
+            for (auto he : f.halfEdges)
+                if (he == targetHE)
+                    return TileFeatureSample { FeatureType::field, (int) fi };
+        }
+
+        // Fallback: any field feature
+        for (size_t fi = 0; fi < tile.type->features.size(); ++fi)
+            if (tile.type->features[fi].type == FeatureType::field)
+                return TileFeatureSample { FeatureType::field, (int) fi };
+    }
 
     return std::nullopt;
 }

@@ -12,7 +12,13 @@
       "Bash(awk NR>=1 && NR<=20 {printf \"%2d: %s\\\\n\", NR, $0} *)",
       "Bash(cmake --preset xcode --debug-output)",
       "Bash(git -C /Users/rrabien/dev/Provins status -s)",
-      "Bash(git -C /Users/rrabien/dev/Provins/modules/gin status -s)"
+      "Bash(git -C /Users/rrabien/dev/Provins/modules/gin status -s)",
+      "Bash(cmake --build build --config Debug)",
+      "Bash(cmake *)",
+      "Bash(open *)",
+      "Bash(killall Provins)",
+      "Bash(gh repo *)",
+      "Bash(gh secret *)"
     ]
   }
 }

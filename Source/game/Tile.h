@@ -1,6 +1,6 @@
 #pragma once
 
-#include <juce_core/juce_core.h>
+#include <JuceHeader.h>
 #include <array>
 #include <vector>
 
@@ -26,10 +26,52 @@ enum class EdgeType { field, road, city };
 
 enum class FeatureType { city, road, cloister, field };
 
+/** Half-edge identifier for field connectivity. Named by edge + side:
+    NW = west half of N edge, NE = east half of N edge, etc. */
+enum class HalfEdge { NW, NE, EN, ES, SE, SW, WS, WN, count };
+
+/** Which tile edge a half-edge belongs to. */
+inline Direction halfEdgeDirection (HalfEdge he) noexcept
+{
+    switch (he)
+    {
+        case HalfEdge::NW: case HalfEdge::NE: return Direction::north;
+        case HalfEdge::EN: case HalfEdge::ES: return Direction::east;
+        case HalfEdge::SE: case HalfEdge::SW: return Direction::south;
+        case HalfEdge::WS: case HalfEdge::WN: return Direction::west;
+        default: return Direction::north;
+    }
+}
+
+/** The matching half-edge on the neighboring tile across the shared boundary. */
+inline HalfEdge oppositeHalfEdge (HalfEdge he) noexcept
+{
+    switch (he)
+    {
+        case HalfEdge::NW: return HalfEdge::SW;
+        case HalfEdge::NE: return HalfEdge::SE;
+        case HalfEdge::EN: return HalfEdge::WN;
+        case HalfEdge::ES: return HalfEdge::WS;
+        case HalfEdge::SE: return HalfEdge::NE;
+        case HalfEdge::SW: return HalfEdge::NW;
+        case HalfEdge::WS: return HalfEdge::ES;
+        case HalfEdge::WN: return HalfEdge::EN;
+        default: return he;
+    }
+}
+
+/** Rotate a half-edge CW by `steps` 90-degree increments. */
+inline HalfEdge rotateHalfEdgeCW (HalfEdge he, int steps) noexcept
+{
+    int n = (int) HalfEdge::count;
+    return (HalfEdge) ((((int) he + steps * 2) % n + n) % n);
+}
+
 struct Feature
 {
     FeatureType type = FeatureType::cloister;
-    std::vector<Direction> edges;   // empty for cloister
+    std::vector<Direction> edges;      // for city/road features
+    std::vector<HalfEdge>  halfEdges;  // for field features
     bool pennant = false;
 };
 

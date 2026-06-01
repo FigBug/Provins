@@ -22,22 +22,42 @@ namespace
 
 GameView::GameView (const game::GameState& s) : state (s) {}
 
-void GameView::paint (juce::Graphics& g)
+void GameView::update (float dt)
 {
-    g.fillAll (juce::Colour::fromRGB (24, 26, 30));
-
     const auto placedBounds = state.getBoard().bounds();
     if (! placedBounds.has_value())
         return;
 
-    // Camera bbox = placed tiles ∪ every player position, padded.
-    juce::Rectangle<float> worldBounds = placedBounds->toFloat();
+    juce::Rectangle<float> target = placedBounds->toFloat();
     for (const auto& p : state.getPlayers())
-    {
-        worldBounds = worldBounds.getUnion (
+        target = target.getUnion (
             juce::Rectangle<float> (p.position.x, p.position.y, 0.0f, 0.0f));
+    target.expand (kPaddingCells, kPaddingCells);
+
+    if (! cameraInitialised)
+    {
+        currentWorldBounds = target;
+        cameraInitialised  = true;
     }
-    worldBounds.expand (kPaddingCells, kPaddingCells);
+    else
+    {
+        float t = juce::jmin (1.0f, kCameraSmoothing * dt);
+        float x = currentWorldBounds.getX()      + (target.getX()      - currentWorldBounds.getX())      * t;
+        float y = currentWorldBounds.getY()      + (target.getY()      - currentWorldBounds.getY())      * t;
+        float w = currentWorldBounds.getWidth()   + (target.getWidth()  - currentWorldBounds.getWidth())  * t;
+        float h = currentWorldBounds.getHeight()  + (target.getHeight() - currentWorldBounds.getHeight()) * t;
+        currentWorldBounds = { x, y, w, h };
+    }
+}
+
+void GameView::paint (juce::Graphics& g)
+{
+    g.fillAll (juce::Colours::green);
+
+    if (! cameraInitialised)
+        return;
+
+    const auto& worldBounds = currentWorldBounds;
 
     const auto compArea = getLocalBounds().toFloat();
     const float scale = std::min (compArea.getWidth()  / worldBounds.getWidth(),
@@ -48,11 +68,9 @@ void GameView::paint (juce::Graphics& g)
     const float offsetX = compArea.getX() + (compArea.getWidth()  - drawnW) * 0.5f;
     const float offsetY = compArea.getY() + (compArea.getHeight() - drawnH) * 0.5f;
 
-    const auto worldToScreen = juce::AffineTransform::translation (offsetX - worldBounds.getX() * scale,
-                                                                   offsetY - worldBounds.getY() * scale)
-                                                     .scaled (scale, scale,
-                                                              worldBounds.getX() * scale + offsetX,
-                                                              worldBounds.getY() * scale + offsetY);
+    const auto worldToScreen = juce::AffineTransform::scale (scale, scale)
+                                                     .translated (offsetX - worldBounds.getX() * scale,
+                                                                  offsetY - worldBounds.getY() * scale);
 
     // ---- All world-coord drawing inside this transform scope.
     {
@@ -91,18 +109,19 @@ void GameView::paint (juce::Graphics& g)
             g.drawRect (juce::Rectangle<float> (0.0f, 0.0f, 1.0f, 1.0f), 0.06f);
         }
 
-        // Persistent claim flags — one dot per claimed segment, at the tile centre.
+        // Persistent claim flags — dot at the meeple position when claimed.
         for (const auto& p : state.getPlayers())
         {
-            for (const auto& ref : p.claims)
+            for (const auto& [ref, info] : p.claims)
             {
-                const float cx = (float) ref.cell.col + 0.5f;
-                const float cy = (float) ref.cell.row + 0.5f;
-                const float r  = 0.10f;
+                if (info.meepleReturned)
+                    continue;
+
+                const float r = 0.10f;
                 g.setColour (p.colour);
-                g.fillEllipse (cx - r, cy - r, 2 * r, 2 * r);
+                g.fillEllipse (info.position.x - r, info.position.y - r, 2 * r, 2 * r);
                 g.setColour (juce::Colours::black);
-                g.drawEllipse (cx - r, cy - r, 2 * r, 2 * r, 0.015f);
+                g.drawEllipse (info.position.x - r, info.position.y - r, 2 * r, 2 * r, 0.015f);
             }
         }
 
@@ -124,23 +143,6 @@ void GameView::paint (juce::Graphics& g)
         for (const auto& p : state.getPlayers())
             MeepleRenderer::draw (g, p.position, p.colour);
 
-        // Held-tile badges.
-        for (const auto& p : state.getPlayers())
-        {
-            if (p.heldTile == nullptr)
-                continue;
-
-            juce::Graphics::ScopedSaveState badgeSave (g);
-            constexpr float kBadge   = 0.45f;
-            constexpr float kOffsetY = -0.55f;
-            g.addTransform (juce::AffineTransform::scale (kBadge)
-                                                  .translated (p.position.x - kBadge * 0.5f,
-                                                               p.position.y + kOffsetY));
-            TileRenderer::draw (g, game::PlacedTile { p.heldTile, p.heldRotation });
-
-            g.setColour (p.colour);
-            g.drawRect (juce::Rectangle<float> (0.0f, 0.0f, 1.0f, 1.0f), 0.06f);
-        }
     }
 
     // ---- Screen-coord overlays (text hints).

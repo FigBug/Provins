@@ -6,6 +6,7 @@
 #include "game/GameState.h"
 #include "view/GameView.h"
 #include "view/Hud.h"
+#include "view/TitleScreen.h"
 
 class MainComponent : public juce::Component,
                       private juce::Timer
@@ -16,15 +17,22 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress& key) override;
 
 private:
     void timerCallback() override;
 
-    gin::GameControllerManager       controllers;
-    std::unique_ptr<game::GameState> state;
-    std::unique_ptr<view::GameView>  gameView;
-    std::unique_ptr<view::Hud>       hud;
-    double                           lastTickMs = 0.0;
+    void startGame();
+    void returnToTitle();
+
+    gin::GameControllerManager            controllers;
+    std::unique_ptr<view::TitleScreen>    titleScreen;
+    std::unique_ptr<game::GameState>      state;
+    std::unique_ptr<view::GameView>       gameView;
+    std::unique_ptr<view::Hud>            hud;
+    double                                lastTickMs = 0.0;
+    bool                                  inGame     = false;
+    juce::String                          tilesJson;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

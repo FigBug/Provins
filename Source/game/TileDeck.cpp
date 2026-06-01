@@ -1,6 +1,8 @@
 #include "TileDeck.h"
 
 #include <algorithm>
+#include <array>
+#include <set>
 
 namespace game
 {
@@ -92,20 +94,74 @@ TileDeck::TileDeck (const juce::String& json, juce::uint32 randomSeed)
             }
         }
 
-        // Synthesize one field feature per tile bundling every field-typed
-        // edge. Simplified model — a real Carcassonne tile may have multiple
-        // field regions when a road bisects the field, but the JSON's meta
-        // explicitly omits half-edge geometry and we approximate it as one
-        // region per tile. Fields connect across tiles via shared field edges.
+        // Compute field features using half-edge connectivity.
+        // Each non-city edge has two half-edges (left/right). Roads on an
+        // edge separate its two half-edges; corner pairs are always connected.
+        // Connected components of the half-edge graph = distinct field regions.
         {
-            Feature fieldFeature;
-            fieldFeature.type    = FeatureType::field;
-            fieldFeature.pennant = false;
-            for (auto d : allDirections)
-                if (t.edges[(size_t) d] == EdgeType::field)
-                    fieldFeature.edges.push_back (d);
-            if (! fieldFeature.edges.empty())
-                t.features.push_back (std::move (fieldFeature));
+            constexpr int N = (int) HalfEdge::count;
+
+            // Which half-edges exist (not on city edges)?
+            std::array<bool, N> exists {};
+            for (int i = 0; i < N; ++i)
+            {
+                auto dir = halfEdgeDirection ((HalfEdge) i);
+                exists[(size_t) i] = (t.edges[(size_t) dir] != EdgeType::city);
+            }
+
+            // Union-Find
+            std::array<int, N> parent;
+            for (int i = 0; i < N; ++i) parent[(size_t) i] = i;
+
+            auto find = [&] (int x) {
+                while (parent[(size_t) x] != x) x = parent[(size_t) x];
+                return x;
+            };
+            auto unite = [&] (int a, int b) {
+                parent[(size_t) find (a)] = find (b);
+            };
+
+            // Same-edge pairs: connected if edge is field (not road/city)
+            struct EdgePair { HalfEdge a, b; Direction dir; };
+            constexpr EdgePair edgePairs[] = {
+                { HalfEdge::NW, HalfEdge::NE, Direction::north },
+                { HalfEdge::EN, HalfEdge::ES, Direction::east  },
+                { HalfEdge::SE, HalfEdge::SW, Direction::south },
+                { HalfEdge::WS, HalfEdge::WN, Direction::west  },
+            };
+            for (auto& ep : edgePairs)
+                if (exists[(int) ep.a] && exists[(int) ep.b]
+                    && t.edges[(size_t) ep.dir] == EdgeType::field)
+                    unite ((int) ep.a, (int) ep.b);
+
+            // Corner pairs: always connected if both exist
+            struct CornerPair { HalfEdge a, b; };
+            constexpr CornerPair corners[] = {
+                { HalfEdge::NE, HalfEdge::EN },
+                { HalfEdge::ES, HalfEdge::SE },
+                { HalfEdge::SW, HalfEdge::WS },
+                { HalfEdge::WN, HalfEdge::NW },
+            };
+            for (auto& cp : corners)
+                if (exists[(int) cp.a] && exists[(int) cp.b])
+                    unite ((int) cp.a, (int) cp.b);
+
+            // Collect connected components into field features
+            std::set<int> roots;
+            for (int i = 0; i < N; ++i)
+                if (exists[(size_t) i])
+                    roots.insert (find (i));
+
+            for (int r : roots)
+            {
+                Feature f;
+                f.type    = FeatureType::field;
+                f.pennant = false;
+                for (int i = 0; i < N; ++i)
+                    if (exists[(size_t) i] && find (i) == r)
+                        f.halfEdges.push_back ((HalfEdge) i);
+                t.features.push_back (std::move (f));
+            }
         }
 
         types.push_back (std::move (t));

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Tile.h"
-#include <juce_core/juce_core.h>
+#include <JuceHeader.h>
 #include <vector>
 #include <random>
 

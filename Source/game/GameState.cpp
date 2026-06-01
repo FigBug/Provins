@@ -137,50 +137,10 @@ namespace
         return 0;
     }
 
-    /** Canonical sample-point inside a feature where the AI can stand to
-        claim it. Returns a position in [0,1]^2 in canonical coords. */
-    juce::Point<float> canonicalFeatureSamplePoint (const Feature& f)
-    {
-        const juce::Point<float> centre { 0.5f, 0.5f };
-        if (f.type == FeatureType::cloister || f.edges.empty())
-            return centre;
-
-        auto edgeMidpoint = [] (Direction d) -> juce::Point<float>
-        {
-            switch (d)
-            {
-                case Direction::north: return { 0.5f, 0.0f };
-                case Direction::east:  return { 1.0f, 0.5f };
-                case Direction::south: return { 0.5f, 1.0f };
-                case Direction::west:  return { 0.0f, 0.5f };
-            }
-            return { 0.5f, 0.5f };
-        };
-
-        const auto mid = edgeMidpoint (f.edges.front());
-        // For roads & cities, halfway between edge and centre — well inside the
-        // feature's drawn region. For fields, closer to the edge so we sit on
-        // field rather than centre (where a road or cloister might be).
-        const float t = (f.type == FeatureType::field) ? 0.25f : 0.5f;
-        return mid + (centre - mid) * t;
-    }
-
-    /** Rotate `p` clockwise by `steps` 90° increments around (0.5, 0.5). */
-    juce::Point<float> rotateLocalCW (juce::Point<float> p, int steps) noexcept
-    {
-        steps &= 3;
-        while (steps-- > 0)
-        {
-            const float dx = p.x - 0.5f;
-            const float dy = p.y - 0.5f;
-            p = { 0.5f - dy, 0.5f + dx };
-        }
-        return p;
-    }
 }
 
-GameState::GameState (const juce::String& tilesJson, juce::uint32 randomSeed)
-    : deck (tilesJson, randomSeed)
+GameState::GameState (const juce::String& tilesJson, int maxPlayers_, juce::uint32 randomSeed)
+    : deck (tilesJson, randomSeed), maxPlayers (maxPlayers_)
 {
     PlacedTile start;
     start.type     = deck.getStartTileType();
@@ -217,8 +177,12 @@ int GameState::findFreeSlot() const noexcept
 
 void GameState::spawnAi()
 {
-    const int slot = findFreeSlot();
-    if (slot < 0)
+    spawnAi (findFreeSlot());
+}
+
+void GameState::spawnAi (int slot)
+{
+    if (slot < 0 || slot >= kMaxPlayers)
         return;
 
     Player p;
@@ -231,7 +195,7 @@ void GameState::spawnAi()
     players.push_back (std::move (p));
 }
 
-bool GameState::isGameOver() const noexcept
+bool GameState::allTilesPlaced() const noexcept
 {
     if (! deck.empty())
         return false;
@@ -239,6 +203,11 @@ bool GameState::isGameOver() const noexcept
         if (p.heldTile != nullptr)
             return false;
     return ! players.empty();
+}
+
+bool GameState::isGameOver() const noexcept
+{
+    return endTimer == 0.0f;
 }
 
 /** Returns true if any segment of the instance containing `ref` is already
@@ -249,11 +218,30 @@ bool GameState::isClaimedByAnyone (const FeatureRef& ref) const
     std::set<FeatureRef> instSegs (inst.segments.begin(), inst.segments.end());
 
     for (const auto& player : players)
-        for (const auto& claim : player.claims)
+        for (const auto& [claim, info] : player.claims)
             if (instSegs.count (claim) != 0)
                 return true;
 
     return false;
+}
+
+void GameState::returnCompletedMeeples()
+{
+    for (auto& p : players)
+    {
+        for (auto& [ref, info] : p.claims)
+        {
+            if (info.meepleReturned)
+                continue;
+
+            const auto inst = traceFeature (board, ref);
+            if (inst.isComplete)
+            {
+                info.meepleReturned = true;
+                ++p.meepleSupply;
+            }
+        }
+    }
 }
 
 void GameState::update (float dt, gin::GameControllerManager& controllers)
@@ -278,7 +266,7 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
             if (existing.controllerIndex == port)
                 { alreadyHasPlayer = true; break; }
 
-        if (! alreadyHasPlayer)
+        if (! alreadyHasPlayer && (int) players.size() < maxPlayers)
             spawnPlayer (port);
     }
 
@@ -297,9 +285,14 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         if (c == nullptr || ! c->isConnected())
             continue;
 
-        // ---- Movement: speed scales by terrain at the meeple's current point.
-        const float lx = c->getAxis (A::leftX);
-        const float ly = c->getAxis (A::leftY);
+        // ---- Movement: left stick + d-pad, speed scales by terrain.
+        float lx = c->getAxis (A::leftX);
+        float ly = c->getAxis (A::leftY);
+
+        if (c->isButtonDown (B::dpadLeft))  lx = -1.0f;
+        if (c->isButtonDown (B::dpadRight)) lx =  1.0f;
+        if (c->isButtonDown (B::dpadUp))    ly = -1.0f;
+        if (c->isButtonDown (B::dpadDown))  ly =  1.0f;
 
         const GridCoord currentCell = cellOf (p.position);
         const auto*     currentTile = board.at (currentCell);
@@ -335,9 +328,14 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         // ---- Aim with right stick → one of the 8 neighbours of the meeple's current cell.
         const float rx = c->getAxis (A::rightX);
         const float ry = c->getAxis (A::rightY);
+        const bool stickAtCentre = std::abs (rx) <= kAimDeadzone
+                                && std::abs (ry) <= kAimDeadzone;
+
+        if (p.aimSuppressed && stickAtCentre)
+            p.aimSuppressed = false;
 
         std::optional<GridCoord> target;
-        if (std::abs (rx) > kAimDeadzone || std::abs (ry) > kAimDeadzone)
+        if (! p.aimSuppressed && ! stickAtCentre)
         {
             const GridCoord home = cellOf (p.position);
             const int tdx = rx >  kAimDeadzone ?  1 : rx < -kAimDeadzone ? -1 : 0;
@@ -350,8 +348,10 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
                           && p.heldTile != nullptr
                           && board.canPlace (*target, PlacedTile { p.heldTile, p.heldRotation });
 
-        // ---- Place (A), edge-triggered. Opens a fresh claim window.
-        const bool place = c->isButtonDown (B::faceDown);
+        // ---- Place (A or either trigger), edge-triggered. Opens a fresh claim window.
+        const bool place = c->isButtonDown (B::faceDown)
+                        || c->getAxis (A::leftTrigger)  > 0.5f
+                        || c->getAxis (A::rightTrigger) > 0.5f;
         if (place && ! p.prevPlace && p.targetValid)
         {
             board.place (*target, PlacedTile { p.heldTile, p.heldRotation });
@@ -361,13 +361,15 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
             p.targetValid  = false;
             p.lastPlaced   = *target;
             p.hoveredClaimable.reset();
+            p.aimSuppressed = true;
         }
         p.prevPlace = place;
 
         // ---- Hover detection: only the placer, only on the placed tile, only if
-        //      the underlying feature isn't already claimed by anyone.
+        //      the underlying feature isn't already claimed by anyone and
+        //      the player has meeples available.
         p.hoveredClaimable.reset();
-        if (p.lastPlaced.has_value())
+        if (p.lastPlaced.has_value() && p.meeplesAvailable() > 0)
         {
             const GridCoord nowCell = cellOf (p.position);
             if (nowCell == *p.lastPlaced)
@@ -390,11 +392,24 @@ void GameState::update (float dt, gin::GameControllerManager& controllers)
         const bool claim = c->isButtonDown (B::faceRight);
         if (claim && ! p.prevClaim && p.hoveredClaimable.has_value())
         {
-            p.claims.insert (*p.hoveredClaimable);
-            p.lastPlaced.reset();        // claim window closes
+            p.claims[*p.hoveredClaimable] = { p.position, false };
+            --p.meepleSupply;
+            p.lastPlaced.reset();
             p.hoveredClaimable.reset();
         }
         p.prevClaim = claim;
+    }
+
+    returnCompletedMeeples();
+
+    if (allTilesPlaced() && endTimer < 0.0f)
+        endTimer = 20.0f;
+
+    if (endTimer > 0.0f)
+    {
+        endTimer -= dt;
+        if (endTimer <= 0.0f)
+            endTimer = 0.0f;
     }
 }
 
@@ -407,7 +422,7 @@ int GameState::computeScore (int playerIndex) const
 
     int total = 0;
     std::set<FeatureRef> alreadyTraced;
-    for (const auto& ref : player.claims)
+    for (const auto& [ref, info] : player.claims)
     {
         if (alreadyTraced.count (ref))
             continue;
@@ -429,9 +444,30 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
 {
     brain.planCooldown -= dt;
 
-    // Re-plan when there's no active plan and the cooldown has elapsed.
     const bool noActivePlan = ! brain.placeCell.has_value()
                               && ! brain.fineTarget.has_value();
+
+    if (noActivePlan)
+        brain.stuckTimer = 0.0f;
+    else
+    {
+        brain.stuckTimer += dt;
+        if (brain.stuckTimer > 20.0f)
+        {
+            brain.placeCell.reset();
+            brain.placeFromCell.reset();
+            brain.fineTarget.reset();
+            brain.path.clear();
+            brain.pathIdx      = 0;
+            brain.placeDelay   = 0.0f;
+            brain.claimDelay   = 0.0f;
+            brain.stuckTimer   = 0.0f;
+            brain.planCooldown = 0.0f;
+            p.lastPlaced.reset();
+            p.hoveredClaimable.reset();
+            return;
+        }
+    }
 
     if (noActivePlan && brain.planCooldown <= 0.0f)
     {
@@ -467,6 +503,13 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
     {
         if (cellOf (p.position) == *brain.placeFromCell)
         {
+            if (brain.placeDelay <= 0.0f)
+                brain.placeDelay = 10.0f;
+
+            brain.placeDelay -= dt;
+            if (brain.placeDelay > 0.0f)
+                return;
+
             const PlacedTile pt { p.heldTile, brain.placeRotation };
             if (p.heldTile != nullptr
                 && ! board.isOccupied (*brain.placeCell)
@@ -477,12 +520,12 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                 p.heldTile     = deck.draw();
                 p.heldRotation = 0;
             }
-            // Done (success or plan invalidated by another player).
             brain.placeCell.reset();
             brain.placeFromCell.reset();
             brain.path.clear();
-            brain.pathIdx     = 0;
-            brain.planCooldown = 0.0f;   // immediately plan the claim next tick
+            brain.pathIdx      = 0;
+            brain.placeDelay   = 0.0f;
+            brain.planCooldown = 0.0f;
         }
     }
 
@@ -501,8 +544,6 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                 {
                     const FeatureRef ref { cell, sample->featureIndex };
 
-                    // Mirror the human visual flow — show the hover ring so
-                    // other players can see what's about to be claimed.
                     if (! isClaimedByAnyone (ref))
                         p.hoveredClaimable = ref;
                     else
@@ -511,14 +552,25 @@ void GameState::aiUpdate (Player& p, AiBrain& brain, float dt)
                     const auto diff = p.position - *brain.fineTarget;
                     if (diff.getDistanceFromOrigin() < 0.10f)
                     {
-                        if (! isClaimedByAnyone (ref))
-                            p.claims.insert (ref);
+                        if (brain.claimDelay <= 0.0f)
+                            brain.claimDelay = 5.0f;
+
+                        brain.claimDelay -= dt;
+                        if (brain.claimDelay > 0.0f)
+                            return;
+
+                        if (! isClaimedByAnyone (ref) && p.meeplesAvailable() > 0)
+                        {
+                            p.claims[ref] = { p.position, false };
+                            --p.meepleSupply;
+                        }
 
                         p.lastPlaced.reset();
                         p.hoveredClaimable.reset();
                         brain.fineTarget.reset();
                         brain.path.clear();
                         brain.pathIdx      = 0;
+                        brain.claimDelay   = 0.0f;
                         brain.planCooldown = 0.0f;
                     }
                 }
@@ -544,7 +596,16 @@ bool GameState::aiPlanPlacement (Player& p, AiBrain& brain)
         {-1, 1}, { 0, 1}, { 1, 1}
     };
 
-    int       bestDist     = std::numeric_limits<int>::max();
+    // Collect all feature instances this player has claimed.
+    std::set<FeatureRef> ownedSegments;
+    for (const auto& [claim, claimInfo] : p.claims)
+    {
+        const auto inst = traceFeature (board, claim);
+        for (const auto& seg : inst.segments)
+            ownedSegments.insert (seg);
+    }
+
+    int       bestScore    = std::numeric_limits<int>::min();
     GridCoord bestPlaceCell { 0, 0 };
     GridCoord bestFromCell  { 0, 0 };
     int       bestRotation = 0;
@@ -564,12 +625,62 @@ bool GameState::aiPlanPlacement (Player& p, AiBrain& brain)
                 if (! board.canPlace (candidate, pt))
                     continue;
 
-                // Prefer placements that are close to where we already are.
+                int score = 0;
+
+                // Temporarily place the tile to evaluate.
+                board.place (candidate, pt);
+
+                // Check if this placement extends or completes any owned feature.
+                for (auto d : allDirections)
+                {
+                    const auto nbr = candidate.neighbour (d);
+                    if (ownedSegments.count ({ nbr, 0 }) == 0)
+                    {
+                        bool isOwned = false;
+                        const auto* nbrTile = board.at (nbr);
+                        if (nbrTile != nullptr)
+                        {
+                            for (int fi = 0; fi < (int) nbrTile->type->features.size(); ++fi)
+                            {
+                                if (ownedSegments.count ({ nbr, fi }) != 0)
+                                {
+                                    isOwned = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (! isOwned) continue;
+                    }
+
+                    // This neighbor has one of our claims. Check if
+                    // the connected feature gets closer to completion.
+                    for (const auto& [claim, claimInfo] : p.claims)
+                    {
+                        const auto inst = traceFeature (board, claim);
+                        bool touchesCandidate = false;
+                        for (const auto& seg : inst.segments)
+                            if (seg.cell == candidate)
+                                { touchesCandidate = true; break; }
+
+                        if (touchesCandidate)
+                        {
+                            score += 10;
+                            if (inst.isComplete)
+                                score += 50;
+                        }
+                    }
+                    break;
+                }
+
+                board.remove (candidate);
+
                 const int dist = std::abs (placedCell.col - start.col)
                                + std::abs (placedCell.row - start.row);
-                if (dist < bestDist)
+                score -= dist;
+
+                if (score > bestScore)
                 {
-                    bestDist      = dist;
+                    bestScore     = score;
                     bestPlaceCell = candidate;
                     bestFromCell  = placedCell;
                     bestRotation  = rot;
@@ -593,7 +704,7 @@ bool GameState::aiPlanPlacement (Player& p, AiBrain& brain)
 
 bool GameState::aiPlanClaim (Player& p, AiBrain& brain)
 {
-    if (! p.lastPlaced.has_value())
+    if (! p.lastPlaced.has_value() || p.meeplesAvailable() <= 0)
         return false;
 
     const auto       cell = *p.lastPlaced;
@@ -622,7 +733,7 @@ bool GameState::aiPlanClaim (Player& p, AiBrain& brain)
         return false;
 
     const auto& feat        = tile->type->features[(size_t) bestFi];
-    const auto  canonicalPt = canonicalFeatureSamplePoint (feat);
+    const auto  canonicalPt = featureSamplePoint (feat);
     const auto  rotated     = rotateLocalCW (canonicalPt, tile->rotation);
 
     brain.fineTarget = juce::Point<float> { (float) cell.col + rotated.x,

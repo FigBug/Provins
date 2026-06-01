@@ -56,4 +56,11 @@ FeatureInstance traceFeature (const Board& board, FeatureRef start);
     Cloister needs board context for the neighbour count; the others don't. */
 int scoreOf (const FeatureInstance& inst, const Board& board);
 
+/** Canonical sample-point inside a feature in [0,1]^2 tile-local coords.
+    Used for claim dot placement and AI positioning. */
+juce::Point<float> featureSamplePoint (const Feature& f);
+
+/** Rotate a tile-local point CW by `steps` 90-degree increments around (0.5, 0.5). */
+juce::Point<float> rotateLocalCW (juce::Point<float> p, int steps) noexcept;
+
 } // namespace game

@@ -2,8 +2,9 @@
 
 #include "Features.h"
 #include "Tile.h"
-#include <juce_graphics/juce_graphics.h>
+#include <JuceHeader.h>
 #include <optional>
+#include <map>
 #include <set>
 #include <vector>
 
@@ -27,8 +28,10 @@ struct AiBrain
     // specific feature when claiming).
     std::optional<juce::Point<float>> fineTarget;
 
-    // Re-plan throttle so we don't spam BFS when things are unstable.
     float planCooldown = 0.0f;
+    float placeDelay   = 0.0f;
+    float claimDelay   = 0.0f;
+    float stuckTimer   = 0.0f;
 };
 
 struct Player
@@ -56,15 +59,24 @@ struct Player
         the underlying feature isn't claimed by anyone. */
     std::optional<FeatureRef> hoveredClaimable;
 
-    /** Persistent claims. There's no return-to-supply — once a player commits
-        a claim it stays for the rest of the game (user's "no limit"). */
-    std::set<FeatureRef> claims;
+    static constexpr int kMaxMeeples = 7;
 
-    /** Previous-tick button state for edge detection. */
+    struct Claim
+    {
+        juce::Point<float> position;
+        bool               meepleReturned = false;
+    };
+
+    std::map<FeatureRef, Claim> claims;
+    int                         meepleSupply = kMaxMeeples;
+
+    int meeplesAvailable() const noexcept { return meepleSupply; }
+
     bool prevPlace     = false;
     bool prevClaim     = false;
     bool prevRotateCW  = false;
     bool prevRotateCCW = false;
+    bool aimSuppressed = false;
 
     /** Set iff this player is AI. `controllerIndex` stays at -1 in that case. */
     std::optional<AiBrain> ai;

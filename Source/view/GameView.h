@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../game/GameState.h"
-#include <juce_gui_basics/juce_gui_basics.h>
+#include <JuceHeader.h>
 
 namespace view
 {
@@ -14,12 +14,16 @@ public:
     explicit GameView (const game::GameState& state);
 
     void paint (juce::Graphics&) override;
+    void update (float dt);
 
 private:
     const game::GameState& state;
 
-    /** Cells of padding around the placed-tile bounding box. */
     static constexpr int kPaddingCells = 2;
+    static constexpr float kCameraSmoothing = 3.0f;
+
+    juce::Rectangle<float> currentWorldBounds { -2.0f, -2.0f, 5.0f, 5.0f };
+    bool                   cameraInitialised = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GameView)
 };

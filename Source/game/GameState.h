@@ -15,7 +15,7 @@ namespace game
 class GameState
 {
 public:
-    explicit GameState (const juce::String& tilesJson, juce::uint32 randomSeed = 0);
+    explicit GameState (const juce::String& tilesJson, int maxPlayers = 4, juce::uint32 randomSeed = 0);
 
     const TileDeck& getDeck()  const noexcept   { return deck; }
     const Board&    getBoard() const noexcept   { return board; }
@@ -30,17 +30,21 @@ public:
         feature instance that contains any of the player's claimed segments. */
     int computeScore (int playerIndex) const;
 
-    /** True once the deck is empty AND every player's held tile is gone —
-        i.e., no further placement is possible. Movement and last-call claims
-        keep working; the HUD draws a winner overlay. */
     bool isGameOver() const noexcept;
+    bool allTilesPlaced() const noexcept;
+    float getEndTimer() const noexcept { return endTimer; }
 
     /** Add an AI-driven player. Picks the first free colour slot 0..3. */
     void spawnAi();
 
+    /** Add an AI-driven player at a specific colour slot (0..3). */
+    void spawnAi (int slot);
+
+    void spawnPlayer (int controllerIndex);
+
 private:
     bool isClaimedByAnyone (const FeatureRef& ref) const;
-    void spawnPlayer       (int controllerIndex);
+    void returnCompletedMeeples();
     int  findFreeSlot      () const noexcept;
 
     void aiUpdate          (Player& p, AiBrain& brain, float dt);
@@ -51,6 +55,8 @@ private:
     TileDeck            deck;
     Board               board;
     std::vector<Player> players;
+    int                 maxPlayers = 4;
+    float               endTimer   = -1.0f;
 };
 
 } // namespace game

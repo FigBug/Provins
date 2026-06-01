@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Tile.h"
-#include <juce_graphics/juce_graphics.h>
+#include <JuceHeader.h>
 #include <map>
 #include <optional>
 
@@ -16,6 +16,8 @@ public:
 
     /** Place a tile. No validation — caller is responsible for checking canPlace(). */
     void place (GridCoord c, PlacedTile t);
+
+    void remove (GridCoord c);
 
     const PlacedTile* at (GridCoord c) const noexcept;
 
